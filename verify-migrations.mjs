@@ -13,7 +13,8 @@ const migrations = [
   '20260727202125_kubb_playoff_fix.sql',
   '20260727213946_kubb_hardening.sql',
   '20260727214106_kubb_fix_unqualified_deletes.sql',
-  '20260730210000_kubb_final_groups_and_courts.sql'
+  '20260730210000_kubb_final_groups_and_courts.sql',
+  '20260730220000_kubb_admin_teams_and_fair_draw.sql'
 ];
 
 const assert = (condition, message) => { if (!condition) throw new Error(message); };
@@ -30,9 +31,18 @@ const teams = [
   ['Alfa', 'A'], ['Bravo', 'A'], ['Charlie', 'A'], ['Delta', 'A'],
   ['Echo', 'B'], ['Foxtrot', 'B'], ['Golf', 'B'], ['Hotel', 'B']
 ].map(([name, grp]) => ({ name, grp }));
+
+const drawTeams = Array.from({ length: 16 }, (_, i) => ({ name:`Trekningslag ${i + 1}`, grp:'A' }));
+await db.query('select public.kubb_admin_set_teams($1, $2::jsonb)', ['ENDRE_MEG', JSON.stringify(drawTeams)]);
+await db.query("select public.kubb_admin_generate_groups('ENDRE_MEG')");
+let drawnGroups = await db.query('select grp, count(*)::int as n from public.kubb_teams group by grp order by grp');
+assert(drawnGroups.rows.length === 4 && drawnGroups.rows.every(row => row.n === 4), 'expected a fair draw of four groups with four teams');
+let adminTeamCodes = await scalar("select count(*)::int as n from public.kubb_codes where role = 'admin' and team_id is not null");
+assert(adminTeamCodes.n === 2, 'expected the first two teams to receive admin access');
+
 await db.query('select public.kubb_admin_set_teams($1, $2::jsonb)', ['ENDRE_MEG', JSON.stringify(teams)]);
 await db.query("select public.kubb_admin_settings('ENDRE_MEG', 'Testturnering', 40, 1, 2)");
-let codes = await scalar("select count(*)::int as n from public.kubb_codes where role = 'team' and team_id is not null");
+let codes = await scalar("select count(*)::int as n from public.kubb_codes where role in ('team', 'admin') and team_id is not null");
 assert(codes.n === teams.length, `expected one team code per team, got ${codes.n}`);
 await db.query("select public.kubb_admin_start_tournament('ENDRE_MEG')");
 
@@ -69,6 +79,10 @@ await db.query('select public.kubb_finish_match($1, $2, $3)', ['ENDRE_MEG', deci
 let points = await db.query("select team_id, points from public.kubb_standings where stage = 'group' and team_id in ($1, $2)", [decided.team_a, decided.team_b]);
 assert(points.rows.find(row => row.team_id === decided.team_a).points === 3, 'a group winner did not receive three points');
 assert(points.rows.find(row => row.team_id === decided.team_b).points === 0, 'a group loser did not receive zero points');
+await db.query('select public.kubb_admin_correct_result($1, $2, $3)', ['ENDRE_MEG', decided.id, 'b']);
+points = await db.query("select team_id, points from public.kubb_standings where stage = 'group' and team_id in ($1, $2)", [decided.team_a, decided.team_b]);
+assert(points.rows.find(row => row.team_id === decided.team_a).points === 0, 'corrected group result did not remove the old winner points');
+assert(points.rows.find(row => row.team_id === decided.team_b).points === 3, 'corrected group result did not award the new winner points');
 
 const firstStage = await db.query("select id from public.kubb_matches where stage = 'group' and status <> 'finished'");
 for (const row of firstStage.rows) {

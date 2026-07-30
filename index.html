@@ -829,7 +829,7 @@ function paint(){
   document.title = (S.t.name || 'Kubbmesterskap');
   const who = $('#who');
   who.dataset.role = S.role;
-  $('#whoName').textContent = S.role === 'admin' ? 'Arrangør' : S.role === 'team' ? (S.teamName || 'Lag') : 'Tilskuer';
+  $('#whoName').textContent = S.role === 'admin' ? (S.teamName ? `${S.teamName} · arrangør` : 'Arrangør') : S.role === 'team' ? (S.teamName || 'Lag') : 'Tilskuer';
   who.setAttribute('aria-label', S.role === 'guest' ? 'Logg inn med kode' : 'Logg ut');
   who.onclick = () => S.role === 'guest' ? location.reload() : askSignOut();
 
@@ -852,6 +852,7 @@ function wire(){
       pause:   () => rpc('kubb_pause_match',  { p_match:id }),
       resume:  () => rpc('kubb_resume_match', { p_match:id }),
       finish:  () => sheetResult(id),
+      edit:    () => sheetResult(id, true),
       reopen:  () => rpc('kubb_reopen_match', { p_match:id }, 'Kampen er åpnet igjen'),
       advance: () => rpc('kubb_admin_advance_tournament', {}, 'Turneringen er flyttet videre'),
       choose:  () => sheetChooseCourt(Number(n.dataset.court)),
@@ -862,10 +863,9 @@ function wire(){
       keys:    () => sheetKeys(),
       teams:   () => sheetTeams(),
       setup:   () => sheetSetup(),
-      begin:   () => ask('Sett opp gruppespillet?',
-                  S.matches.length ? 'Alle kamper og resultater som finnes nå blir slettet og satt opp på nytt.'
-                                   : 'Alle lag møter alle i sin pulje. Baner fylles automatisk.',
-                  'Sett opp', () => rpc('kubb_admin_start_tournament', {}, 'Gruppespillet er satt opp')),
+      begin:   () => ask('Generer fire puljer?',
+                  'De 16 lagene trekkes tilfeldig inn i fire puljer med fire lag. Alle kan se resultatet med én gang.',
+                  'Generer puljer', () => rpc('kubb_admin_generate_groups', {}, 'Puljene er trukket — gruppespillet er klart')),
       wipe:    () => ask('Nullstille alt?', 'Lag, koder, kamper og resultater slettes. Dette kan ikke angres.',
                   'Slett alt', () => rpc('kubb_admin_reset', {}, 'Alt er nullstilt'), true),
       out:     () => askSignOut()
@@ -1074,7 +1074,7 @@ function matchRow(m){
       <div class="meta">${esc(bits.join(' · '))}</div>
     </div>
     ${chip}
-    ${isAdmin() && done ? `<button class="btn sm quiet" data-do="reopen" data-id="${m.id}">Angre</button>` : ''}
+    ${isAdmin() && done ? `<button class="btn sm quiet" data-do="edit" data-id="${m.id}">Endre</button>` : ''}
   </article>`;
 }
 
@@ -1191,7 +1191,7 @@ function viewAdmin(){
     </div>
     <div class="eyebrow">Under turneringen</div>
     <div class="rows">
-      ${row('begin', ICON.play, total ? 'Sett opp gruppespillet på nytt' : 'Sett opp gruppespillet', 'Lager alle kamper og fyller banene')}
+      ${row('begin', ICON.play, total ? 'Trekk fire puljer på nytt' : 'Generer fire puljer', 'Fordeler 16 lag tilfeldig i fire puljer med fire lag')}
       ${row('advance', ICON.cup, 'Neste turneringstrinn', rest ? `${rest} kamper igjen i første gruppespill` : finalRest ? `${finalRest} kamper igjen i A- og B-gruppespillet` : 'Oppretter gruppespill eller utslagstrær ved behov')}
       ${row('tv', ICON.tv, 'Storskjerm', 'Alle baner og klokker i fullskjerm')}
     </div>
@@ -1252,21 +1252,21 @@ function askSignOut(){
   ask('Logge ut?', S.role === 'admin' ? 'Du må skrive inn arrangørkoden igjen for å komme tilbake.' : 'Du må skrive inn lagkoden igjen for å komme tilbake.', 'Logg ut', signOut);
 }
 
-function sheetResult(id){
+function sheetResult(id, editing = false){
   const m = S.matches.find(x => x.id === id); if(!m) return;
   const a = tName(m.team_a) || '?', b = tName(m.team_b) || '?';
   const r = left(m);
-  const status = m.status === 'paused' ? 'Kampen er pauset' : r <= 0 ? `Tiden gikk ut for ${clock(-r).replace('+','')} siden` : `${clock(r)} igjen av kampen`;
+  const status = editing ? 'Endringen oppdaterer tabellen med én gang.' : m.status === 'paused' ? 'Kampen er pauset' : r <= 0 ? `Tiden gikk ut for ${clock(-r).replace('+','')} siden` : `${clock(r)} igjen av kampen`;
   const { box, close } = sheet(`
-    <h2>Hvem vant?</h2>
+    <h2>${editing ? 'Endre resultat' : 'Hvem vant?'}</h2>
     <p class="lede">${esc(m.label || 'Kamp')} · ${esc(status)}</p>
     <button class="choice accent" data-r="a"><span><b>${esc(a)}</b><small>3 poeng</small></span></button>
     <button class="choice accent" data-r="b"><span><b>${esc(b)}</b><small>3 poeng</small></span></button>
     ${isGroupStage(m.stage) ? `<button class="choice" data-r="draw"><span><b>Uavgjort</b><small>1 poeng til hvert lag</small></span></button>` : ''}
     <div class="field"><span>Kubber igjen på banen (valgfritt)</span>
       <div class="kubbfields">
-        <label><em>${esc(a)}</em><input id="ka" type="number" min="0" max="20" inputmode="numeric" placeholder="0"></label>
-        <label><em>${esc(b)}</em><input id="kb" type="number" min="0" max="20" inputmode="numeric" placeholder="0"></label>
+        <label><em>${esc(a)}</em><input id="ka" type="number" min="0" max="20" inputmode="numeric" placeholder="0" value="${editing && m.score_a != null ? m.score_a : ''}"></label>
+        <label><em>${esc(b)}</em><input id="kb" type="number" min="0" max="20" inputmode="numeric" placeholder="0" value="${editing && m.score_b != null ? m.score_b : ''}"></label>
       </div>
       <small>Brukes bare til å skille lag som står likt på poeng.</small></div>
     <div style="margin-top:20px"><button class="btn ghost block" data-x="cancel">Avbryt</button></div>`);
@@ -1276,7 +1276,7 @@ function sheetResult(id){
     const res = btn.dataset.r;
     const p_score_a = val('#ka'), p_score_b = val('#kb');
     close();
-    rpc('kubb_finish_match', { p_match:id, p_result:res, p_score_a, p_score_b }, 'Resultat lagret — ny kamp settes på banen');
+    rpc(editing ? 'kubb_admin_correct_result' : 'kubb_finish_match', { p_match:id, p_result:res, p_score_a, p_score_b }, editing ? 'Resultatet er oppdatert' : 'Resultat lagret — ny kamp settes på banen');
   });
   box.querySelector('[data-x="cancel"]').onclick = close;
 }
@@ -1324,34 +1324,23 @@ function sheetSetup(){
 }
 
 function sheetTeams(){
-  const byGrp = {};
-  S.teams.slice().sort((a,b) => (a.seed||0) - (b.seed||0)).forEach(t => (byGrp[t.grp] = byGrp[t.grp] || []).push(t.name));
-  const text = Object.keys(byGrp).sort().map(g => byGrp[g].map(n => `${n} | ${g}`).join('\n')).join('\n');
-  const nGrp = Math.max(1, Object.keys(byGrp).length || 3);
+  const text = S.teams.slice().sort((a,b) => (a.seed||0) - (b.seed||0)).map(t => t.name).join('\n');
 
   const { box, close } = sheet(`
     <h2>Lag og puljer</h2>
-    <p class="lede">Ett lag per linje. Skriv <b>Lagnavn | A</b> for å bestemme pulje selv, eller bare lagnavn og la puljene fordeles jevnt.</p>
+    <p class="lede">Ett lag per linje. De to første lagene får arrangørtilgang med sin vanlige lagkode. Når turneringen starter trekkes 16 lag tilfeldig inn i fire puljer.</p>
     <label class="field"><span>Lag</span>
-      <textarea id="t-list" rows="9" placeholder="Kubbekongene | A&#10;Pinnedryss | A&#10;Bakgårdsbanditt | B">${esc(text)}</textarea></label>
-    <label class="field"><span>Antall puljer</span><input id="t-n" type="number" min="1" max="12" inputmode="numeric" value="${nGrp}">
-      <small>Brukes bare på linjer uten pulje.</small></label>
+      <textarea id="t-list" rows="12" placeholder="Kubbekongene&#10;Pinnedryss&#10;Bakgårdsbanditt">${esc(text)}</textarea>
+      <small>Det må være nøyaktig 16 lag.</small></label>
     <p class="lede" style="margin-top:18px">Når du lagrer får alle lag nye koder, og kamper som finnes blir slettet.</p>
     <div class="cluster"><button class="btn" data-x="cancel">Avbryt</button><button class="btn primary" data-x="save">Lagre lag</button></div>`);
 
   box.querySelector('[data-x="cancel"]').onclick = close;
   box.querySelector('[data-x="save"]').onclick = async e => {
-    const per = Math.max(1, parseInt(box.querySelector('#t-n').value, 10) || 1);
     const lines = box.querySelector('#t-list').value.split('\n').map(s => s.trim()).filter(Boolean);
-    if(lines.length < 2){ toast('Legg inn minst to lag', true); return; }
-    if(lines.length > 200){ toast('Maks 200 lag', true); return; }
-    let i = 0;
+    if(lines.length !== 16){ toast('Legg inn nøyaktig 16 lag', true); return; }
     const teams = lines.map(l => {
-      const [rawName, rawGrp] = l.split('|');
-      const name = rawName.trim().slice(0,40);
-      let grp = (rawGrp || '').trim().toUpperCase().slice(0,2);
-      if(!grp){ grp = String.fromCharCode(65 + (i % per)); i++; }
-      return { name, grp };
+      return { name: l.slice(0,40), grp:'A' };
     });
     e.currentTarget.classList.add('busy');
     const ok = await rpc('kubb_admin_set_teams', { p_teams: teams }, `${teams.length} lag lagret`);
@@ -1365,7 +1354,7 @@ async function sheetKeys(){
   const rows = data || [];
   const { box, close } = sheet(`
     <h2>Koder</h2>
-    <p class="lede">Én kode per lag. Alle med kode kan starte klokka og melde inn resultat på sin bane.</p>
+    <p class="lede">Én kode per lag. De to første lagene i listen har arrangørtilgang og kan trekke puljer, dele koder og rette resultater.</p>
     ${rows.length ? `<div class="keys">${rows.map(r => `<div class="key"><small>Pulje ${esc(r.grp)}</small><b>${esc(r.team_name)}</b><i>${esc(r.code)}</i></div>`).join('')}</div>`
                   : `<p class="lede">Ingen lag lagt inn ennå.</p>`}
     <label class="field"><span>Arrangørkode</span>
