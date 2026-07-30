@@ -1,6 +1,13 @@
 # Kubbmesterskap
 
-Turneringsverktøy for kubb. Én HTML-fil som kjører hele arrangementet: påmelding av lag, gruppespill, banetildeling, nedtelling per kamp, tabeller og sluttspill fram til finale.
+Turneringsverktøy for kubb. Én HTML-fil som kjører hele arrangementet: påmelding av lag, to gruppespill, banetildeling, 40-minutters nedtelling, tabeller og separate A- og B-sluttspill fram til finale.
+
+## Turneringsflyt
+
+1. Alle lag spiller først ordinære puljer. Seier gir 3 poeng, uavgjort 1 poeng og tap 0 poeng.
+2. De to beste fra hver første pulje går til A-gruppespillet, og de to nederste går til B-gruppespillet.
+3. Når A- og B-gruppespillene er ferdige, bygges egne utslagstrær for hvert nivå. Vinnere går videre automatisk.
+4. Banekartet viser live-kamper med nedtelling. Når 40 minutter går ut, blir en gruppespillkamp automatisk uavgjort, tabellen oppdateres og neste kamp tildeles banen. Arrangøren kan velge en annen startklar kamp når en kamp på banen ikke kan starte.
 
 Appen er laget for å brukes på mobil ute på banen. Arrangøren styrer alt fra ett ark, lagene logger inn med sin egen kode og ser bare det de trenger, og en storskjermvisning kan kastes opp på en projektor.
 
@@ -36,7 +43,7 @@ Oppdateringer kommer via Supabase Realtime på `kubb_matches`, `kubb_teams` og `
 
 Funksjonene deler seg i tre: `kubb_login` / `kubb_role` / `kubb_now` er åpne, `kubb_start_match` / `kubb_pause_match` / `kubb_resume_match` / `kubb_finish_match` / `kubb_reopen_match` / `kubb_set_court` krever gyldig kode, og `kubb_admin_*` krever arrangørkoden.
 
-Sluttspillet bygges av `kubb_admin_generate_playoff`, som setter opp bracketen med `feeds_match`/`feeds_side`-pekere. Når en kamp avsluttes flytter `kubb_propagate` vinneren videre av seg selv.
+Etter første gruppespill oppretter `kubb_create_final_groups` A- og B-gruppene. Når de er ferdige bygger `kubb_create_pool_playoffs` separate seedede utslagstrær med `feeds_match`/`feeds_side`-pekere. Når en utslagskamp avsluttes flytter `kubb_propagate` vinneren videre av seg selv.
 
 ## Sette opp fra bunn
 

@@ -718,8 +718,20 @@ async function boot(){
   await pullAll();
   buildNav(); paint(); listen();
   setInterval(beat, 250);
+  setInterval(finishExpiredMatches, 10000);
+  finishExpiredMatches();
   setInterval(async () => { const { data } = await sb.rpc('kubb_now'); if(data) S.offset = Date.parse(data) - Date.now(); }, 60000);
   setInterval(async () => { await pullAll(); paint(); }, 25000);
+}
+
+let finishingExpired = false;
+async function finishExpiredMatches(){
+  if(finishingExpired || !canAct() || !S.code) return;
+  finishingExpired = true;
+  try {
+    const { data } = await sb.rpc('kubb_finish_expired_matches', { p_code:S.code });
+    if(data > 0){ await pullAll(); paint(); toast(data === 1 ? 'Tiden er ute — kampen ble uavgjort' : `${data} kamper ble uavgjort da tiden gikk ut`); }
+  } finally { finishingExpired = false; }
 }
 
 /* ================================================================
@@ -769,8 +781,7 @@ function paint(){
 }
 
 function wire(){
-  const br = document.getElementById('bracket');
-  if(br) br.classList.toggle('ends', br.scrollWidth <= br.clientWidth + 4);
+  document.querySelectorAll('.bracket').forEach(br => br.classList.toggle('ends', br.scrollWidth <= br.clientWidth + 4));
   $('#view').querySelectorAll('[data-do]').forEach(n => n.onclick = () => {
     const a = n.dataset.do, id = n.dataset.id;
     ({
@@ -779,6 +790,8 @@ function wire(){
       resume:  () => rpc('kubb_resume_match', { p_match:id }),
       finish:  () => sheetResult(id),
       reopen:  () => rpc('kubb_reopen_match', { p_match:id }, 'Kampen er åpnet igjen'),
+      advance: () => rpc('kubb_admin_advance_tournament', {}, 'Turneringen er flyttet videre'),
+      choose:  () => sheetChooseCourt(Number(n.dataset.court)),
       filter:  () => { S.filter = id; paint(); },
       tv:      () => bigScreen(true),
       keys:    () => sheetKeys(),
@@ -788,9 +801,6 @@ function wire(){
                   S.matches.length ? 'Alle kamper og resultater som finnes nå blir slettet og satt opp på nytt.'
                                    : 'Alle lag møter alle i sin pulje. Baner fylles automatisk.',
                   'Sett opp', () => rpc('kubb_admin_start_tournament', {}, 'Gruppespillet er satt opp')),
-      playoff: () => ask('Generer sluttspill?',
-                  'Lagene seedes etter tabellen. Et eksisterende sluttspill blir erstattet.',
-                  'Generer', () => rpc('kubb_admin_generate_playoff', { p_force:true }, 'Sluttspillet er klart')),
       wipe:    () => ask('Nullstille alt?', 'Lag, koder, kamper og resultater slettes. Dette kan ikke angres.',
                   'Slett alt', () => rpc('kubb_admin_reset', {}, 'Alt er nullstilt'), true),
       out:     () => askSignOut()
@@ -853,7 +863,8 @@ function courtCard(c, m){
   let actions = '';
   if(!S.tv && canAct()){
     if(m.status === 'ready')
-      actions = `<button class="btn primary" data-do="start" data-id="${m.id}">${svg(ICON.play,'width:15px;height:15px;fill:currentColor;stroke:none')}Start kampen</button>`;
+      actions = `<button class="btn primary" data-do="start" data-id="${m.id}">${svg(ICON.play,'width:15px;height:15px;fill:currentColor;stroke:none')}Start kampen</button>` +
+        (isAdmin() ? `<button class="btn quiet" data-do="choose" data-court="${c}">Annen kamp</button>` : '');
     else if(m.status === 'live')
       actions = `<button class="btn quiet" data-do="pause" data-id="${m.id}">Pause</button>
                  <button class="btn primary" data-do="finish" data-id="${m.id}">Avslutt</button>`;
@@ -941,7 +952,20 @@ function countdown(id){
 }
 
 /* ---------- kamprad ---------- */
-const STAGE = { group:'Gruppespill', r16:'Åttendedelsfinaler', qf:'Kvartfinaler', sf:'Semifinaler', bronze:'Bronsefinale', final:'Finale' };
+const STAGE = {
+  group:'Første gruppespill', a_group:'A-gruppespill', b_group:'B-gruppespill',
+  r16:'Åttendedelsfinaler', qf:'Kvartfinaler', sf:'Semifinaler', final:'Finale'
+};
+const isGroupStage = stage => ['group','a_group','b_group'].includes(stage);
+function stageName(stage){
+  const pool = stage && stage.match(/^([ab])_(r\d+|qf|sf|final)$/);
+  if(pool) return `${pool[1].toUpperCase()}-sluttspill · ${STAGE[pool[2]] || pool[2]}`;
+  return STAGE[stage] || stage || 'Kamp';
+}
+function matchSection(m){
+  const prefix = stageName(m.stage);
+  return isGroupStage(m.stage) ? `${prefix} · pulje ${m.grp} · runde ${m.round}` : prefix;
+}
 
 function matchRow(m){
   const a = tName(m.team_a) || m.source_a || 'Ikke avgjort';
@@ -989,7 +1013,7 @@ function viewMatches(){
   }
   const buckets = {};
   rows.forEach(m => {
-    const k = m.stage === 'group' ? `Pulje ${m.grp} · runde ${m.round}` : (STAGE[m.stage] || 'Sluttspill');
+    const k = matchSection(m);
     (buckets[k] = buckets[k] || []).push(m);
   });
   for(const k in buckets){
@@ -1005,56 +1029,57 @@ function viewTable(){
   if(!S.standings.length) return blank('Ingen lag ennå',
     isAdmin() ? 'Legg inn lagene, så bygger tabellen seg selv etter hvert som resultatene kommer inn.' : 'Tabellen fylles ut når lagene er lagt inn.',
     isAdmin() ? `<button class="btn primary" data-do="teams">Legg inn lag</button>` : '');
-  const q = S.t.qualifiers_per_group || 2;
-  const groups = [...new Set(S.standings.map(s => s.grp))].sort();
+  const groups = [...new Set(S.standings.map(s => `${s.stage || 'group'}|${s.grp}`))].sort();
   let h = '';
-  groups.forEach(g => {
-    const rows = S.standings.filter(s => s.grp === g).sort((x,y) => x.pos - y.pos);
-    h += `<div class="eyebrow">Pulje ${esc(g)} <small>${rows.length} lag</small></div>
+  groups.forEach(key => {
+    const [stage, g] = key.split('|');
+    const rows = S.standings.filter(s => (s.stage || 'group') === stage && s.grp === g).sort((x,y) => x.pos - y.pos);
+    h += `<div class="eyebrow">${esc(stageName(stage))} · pulje ${esc(g)} <small>${rows.length} lag</small></div>
       <div class="panel pad"><div class="tw"><table>
         <thead><tr><th>#</th><th>Lag</th><th>K</th><th>S</th><th>U</th><th>T</th><th>P</th></tr></thead>
-        <tbody>${rows.map(r => `<tr class="${r.pos <= q ? 'through' : ''} ${r.team_id === S.teamId ? 'self' : ''}">
+        <tbody>${rows.map(r => `<tr class="${stage === 'group' && r.pos <= 2 ? 'through' : ''} ${r.team_id === S.teamId ? 'self' : ''}">
           <td>${r.pos}</td><td>${esc(r.name)}</td><td>${r.played}</td><td>${r.wins}</td><td>${r.draws}</td><td>${r.losses}</td><td>${r.points}</td>
         </tr>`).join('')}</tbody></table></div></div>`;
   });
   h += `<p class="legend">K kamper · S seire · U uavgjort · T tap · P poeng. Seier gir 3 poeng, uavgjort 1.
-    De ${q} øverste i hver pulje går videre. Står to lag likt, teller flest seire, deretter kubbdifferanse.</p>`;
+    De to øverste i hver første pulje går til A-gruppespillet, og de to nederste til B-gruppespillet. Står to lag likt, teller flest seire, deretter kubbdifferanse.</p>`;
   return h;
 }
 
 /* ---------- sluttspill ---------- */
 function viewPlayoff(){
-  const po = S.matches.filter(m => m.stage !== 'group');
+  const po = S.matches.filter(m => /^[ab]_(r\d+|qf|sf|final)$/.test(m.stage));
   if(!po.length){
     const rest = S.matches.filter(m => m.stage === 'group' && m.status !== 'finished').length;
+    const finalRest = S.matches.filter(m => ['a_group','b_group'].includes(m.stage) && m.status !== 'finished').length;
     return blank('Sluttspillet er ikke satt opp',
-      rest ? `${rest} gruppekamper gjenstår. Treet settes opp når arrangøren er klar.` : 'Gruppespillet er ferdig — treet kan settes opp nå.',
-      isAdmin() ? `<button class="btn primary" data-do="playoff">Generer sluttspill</button>` : '');
+      rest ? `${rest} kamper gjenstår i første gruppespill.`
+           : finalRest ? `${finalRest} kamper gjenstår i A- og B-gruppespillet.`
+           : 'Begge gruppespill er ferdige. Utslagstrærne settes opp automatisk.',
+      isAdmin() && !rest ? `<button class="btn primary" data-do="advance">Gå videre nå</button>` : '');
   }
-  const order = ['r16','qf','sf','final','bronze'];
+  const order = ['r16','qf','sf','final'];
   let h = '';
-  const fin = po.find(m => m.stage === 'final' && m.status === 'finished');
-  if(fin){
-    const w = fin.result === 'a' ? tName(fin.team_a) : tName(fin.team_b);
-    h += `<div class="champ">${svg(ICON.cup)}<div><div class="t">Mester</div><div class="n">${esc(w || '')}</div></div></div>`;
-  }
-  h += `<div class="bracket" id="bracket">` + order.filter(s => po.some(m => m.stage === s)).map(s => `
-    <section class="round"><h3>${esc(STAGE[s] || s)}</h3><div class="ties">` +
-    po.filter(m => m.stage === s).sort((a,b) => (a.slot||0) - (b.slot||0)).map(m => {
-      const a = tName(m.team_a), b = tName(m.team_b);
-      const done = m.status === 'finished';
-      const aw = done && m.result === 'a', bw = done && m.result === 'b';
-      const running = ['live','paused','ready'].includes(m.status);
-      const cap = [m.label, m.court ? `bane ${m.court}` : '', m.status === 'live' ? 'spilles nå' : ''].filter(Boolean).join(' · ');
-      const row = (name, src, won, lost, sc) =>
-        `<div class="s ${won ? 'won' : lost ? 'lost' : ''} ${name ? '' : 'tbd'}"><span>${esc(name || src || '–')}</span><span>${sc ?? ''}</span></div>`;
-      return `<article class="tie" data-state="${running ? 'live' : ''}">
-        <div class="cap">${esc(cap)}</div>
-        ${row(a, m.source_a, aw, done && bw, m.score_a)}
-        ${row(b, m.source_b, bw, done && aw, m.score_b)}
-      </article>`;
-    }).join('') + `</div></section>`).join('') + `</div>`;
-  if(isAdmin()) h += `<div style="margin-top:18px;text-align:center"><button class="btn ghost sm" data-do="playoff">Sett opp treet på nytt</button></div>`;
+  ['a','b'].forEach(pool => {
+    const poolMatches = po.filter(m => m.stage.startsWith(pool + '_'));
+    if(!poolMatches.length) return;
+    const fin = poolMatches.find(m => m.stage === `${pool}_final` && m.status === 'finished');
+    if(fin){
+      const w = fin.result === 'a' ? tName(fin.team_a) : tName(fin.team_b);
+      h += `<div class="champ">${svg(ICON.cup)}<div><div class="t">Vinner av ${pool.toUpperCase()}-sluttspill</div><div class="n">${esc(w || '')}</div></div></div>`;
+    }
+    h += `<div class="eyebrow">${pool.toUpperCase()}-sluttspill</div><div class="bracket" id="bracket-${pool}">` +
+      order.filter(s => poolMatches.some(m => m.stage === `${pool}_${s}`)).map(s => `
+        <section class="round"><h3>${esc(STAGE[s] || s)}</h3><div class="ties">` +
+        poolMatches.filter(m => m.stage === `${pool}_${s}`).sort((a,b) => (a.slot||0) - (b.slot||0)).map(m => {
+          const a = tName(m.team_a), b = tName(m.team_b), done = m.status === 'finished';
+          const aw = done && m.result === 'a', bw = done && m.result === 'b';
+          const running = ['live','paused','ready'].includes(m.status);
+          const cap = [m.label, m.court ? `bane ${m.court}` : '', m.status === 'live' ? 'spilles nå' : ''].filter(Boolean).join(' · ');
+          const row = (name, src, won, lost, sc) => `<div class="s ${won ? 'won' : lost ? 'lost' : ''} ${name ? '' : 'tbd'}"><span>${esc(name || src || '–')}</span><span>${sc ?? ''}</span></div>`;
+          return `<article class="tie" data-state="${running ? 'live' : ''}"><div class="cap">${esc(cap)}</div>${row(a, m.source_a, aw, done && bw, m.score_a)}${row(b, m.source_b, bw, done && aw, m.score_b)}</article>`;
+        }).join('') + `</div></section>`).join('') + `</div>`;
+  });
   return h;
 }
 
@@ -1063,6 +1088,7 @@ function viewAdmin(){
   const total = S.matches.length;
   const done = S.matches.filter(m => m.status === 'finished').length;
   const rest = S.matches.filter(m => m.stage === 'group' && m.status !== 'finished').length;
+  const finalRest = S.matches.filter(m => ['a_group','b_group'].includes(m.stage) && m.status !== 'finished').length;
   const row = (act, icon, title, sub, cls) =>
     `<button class="row-btn ${cls || ''}" data-do="${act}"><span class="ico">${svg(icon)}</span>
       <span class="tx"><b>${title}</b><small>${sub}</small></span>
@@ -1077,13 +1103,13 @@ function viewAdmin(){
     <div class="eyebrow">Før start</div>
     <div class="rows">
       ${row('teams', ICON.people, 'Lag og puljer', S.teams.length ? `${S.teams.length} lag i ${new Set(S.teams.map(t=>t.grp)).size} puljer` : 'Ingen lag lagt inn ennå')}
-      ${row('setup', ICON.cog, 'Innstillinger', `${Math.round(S.t.match_seconds/60)} min · ${S.t.num_courts} baner · ${S.t.qualifiers_per_group} videre per pulje`)}
+      ${row('setup', ICON.cog, 'Innstillinger', `${Math.round(S.t.match_seconds/60)} min · ${S.t.num_courts} baner · de to beste til A`)}
       ${row('keys', ICON.key, 'Koder til lagene', S.teams.length ? 'Del ut én kode per lag' : 'Kommer når lagene er lagt inn')}
     </div>
     <div class="eyebrow">Under turneringen</div>
     <div class="rows">
       ${row('begin', ICON.play, total ? 'Sett opp gruppespillet på nytt' : 'Sett opp gruppespillet', 'Lager alle kamper og fyller banene')}
-      ${row('playoff', ICON.cup, 'Generer sluttspill', rest ? `${rest} gruppekamper gjenstår` : 'Gruppespillet er ferdig')}
+      ${row('advance', ICON.cup, 'Neste turneringstrinn', rest ? `${rest} kamper igjen i første gruppespill` : finalRest ? `${finalRest} kamper igjen i A- og B-gruppespillet` : 'Oppretter gruppespill eller utslagstrær ved behov')}
       ${row('tv', ICON.tv, 'Storskjerm', 'Alle baner og klokker i fullskjerm')}
     </div>
     <div class="eyebrow">Farlig</div>
@@ -1153,7 +1179,7 @@ function sheetResult(id){
     <p class="lede">${esc(m.label || 'Kamp')} · ${esc(status)}</p>
     <button class="choice accent" data-r="a"><span><b>${esc(a)}</b><small>3 poeng</small></span></button>
     <button class="choice accent" data-r="b"><span><b>${esc(b)}</b><small>3 poeng</small></span></button>
-    ${m.stage === 'group' ? `<button class="choice" data-r="draw"><span><b>Uavgjort</b><small>1 poeng til hvert lag</small></span></button>` : ''}
+    ${isGroupStage(m.stage) ? `<button class="choice" data-r="draw"><span><b>Uavgjort</b><small>1 poeng til hvert lag</small></span></button>` : ''}
     <div class="field"><span>Kubber igjen på banen (valgfritt)</span>
       <div class="kubbfields">
         <label><em>${esc(a)}</em><input id="ka" type="number" min="0" max="20" inputmode="numeric" placeholder="0"></label>
@@ -1172,6 +1198,24 @@ function sheetResult(id){
   box.querySelector('[data-x="cancel"]').onclick = close;
 }
 
+function sheetChooseCourt(court){
+  const choices = S.matches.filter(m => m.status === 'queued' && m.team_a && m.team_b);
+  if(!choices.length){ toast('Ingen andre startklare kamper i køen', true); return; }
+  const { box, close } = sheet(`
+    <h2>Velg kamp til bane ${court}</h2>
+    <p class="lede">Velg en uspilt kamp dersom kampen som står klar ikke kan starte. Den opprinnelige kampen går tilbake i køen.</p>
+    <div class="list">${choices.map(m => `<button class="row-btn" data-pick="${m.id}">
+      <span class="tx"><b>${esc(tName(m.team_a) || '?')} – ${esc(tName(m.team_b) || '?')}</b><small>${esc(matchSection(m))}</small></span>
+      <span class="arw">${svg(ICON.chev,'width:15px;height:15px;stroke-width:2')}</span>
+    </button>`).join('')}</div>
+    <div style="margin-top:20px"><button class="btn ghost block" data-x="cancel">Avbryt</button></div>`);
+  box.querySelector('[data-x="cancel"]').onclick = close;
+  box.querySelectorAll('[data-pick]').forEach(btn => btn.onclick = async () => {
+    const ok = await rpc('kubb_select_court_match', { p_court:court, p_match:btn.dataset.pick }, 'Kampen er satt på banen');
+    if(ok) close();
+  });
+}
+
 function sheetSetup(){
   const { box, close } = sheet(`
     <h2>Innstillinger</h2><p class="lede">Gjelder hele turneringen.</p>
@@ -1179,7 +1223,7 @@ function sheetSetup(){
     <label class="field"><span>Kamplengde i minutter</span><input id="f-min" type="number" min="1" max="180" inputmode="numeric" value="${Math.round(S.t.match_seconds/60)}">
       <small>En kamp kan avgjøres når som helst før tiden går ut. Går tiden ut uten vinner, blir det uavgjort.</small></label>
     <label class="field"><span>Antall baner</span><input id="f-courts" type="number" min="1" max="20" inputmode="numeric" value="${S.t.num_courts}"></label>
-    <label class="field"><span>Lag videre fra hver pulje</span><input id="f-q" type="number" min="1" max="8" inputmode="numeric" value="${S.t.qualifiers_per_group}"></label>
+    <p class="lede">De to beste fra hver første pulje går til A-gruppespillet, og de to nederste går til B-gruppespillet.</p>
     <div style="margin-top:22px" class="cluster">
       <button class="btn" data-x="cancel">Avbryt</button>
       <button class="btn primary" data-x="save">Lagre</button></div>`);
@@ -1190,7 +1234,7 @@ function sheetSetup(){
       p_name: box.querySelector('#f-name').value,
       p_minutes: parseInt(box.querySelector('#f-min').value, 10) || 40,
       p_courts: parseInt(box.querySelector('#f-courts').value, 10) || 6,
-      p_qualifiers: parseInt(box.querySelector('#f-q').value, 10) || 2
+      p_qualifiers: 2
     }, 'Innstillinger lagret');
     if(ok) close(); else e.currentTarget.classList.remove('busy');
   };
