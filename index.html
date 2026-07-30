@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#f6f7f8">
 <meta name="description" content="Live kampklokker, tabell og sluttspill for kubbmesterskapet.">
-<title>Kubbmesterskap</title>
+<title>Kilkast</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='7' fill='%23191c22'/><rect x='9' y='7' width='5' height='18' rx='1.4' fill='%23f6f7f8'/><rect x='18' y='12' width='5' height='13' rx='1.4' fill='%2358c48a'/></svg>">
 <style>
 /* ============================================================
@@ -285,6 +285,15 @@ main{max-width:960px;margin:0 auto;padding:var(--s4) var(--s4) var(--s7)}
 }
 .court-next{padding:9px var(--s4);border-top:1px solid var(--line);font-size:12.5px;color:var(--ink-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .court-next b{color:var(--ink);font-weight:620}
+.turn-call{
+  position:sticky;top:8px;z-index:4;display:flex;align-items:center;gap:11px;
+  margin-bottom:var(--s4);padding:12px 14px;background:var(--ink);color:var(--on-ink);
+  border-radius:var(--r2);box-shadow:var(--shadow-2);animation:cardIn .36s var(--e-expo) both;
+}
+.turn-call[data-state="ready"]{background:var(--go);color:#062718}
+.turn-call[data-state="paused"]{background:var(--warn);color:#2e1900}
+.turn-call .turn-mark{flex:0 0 auto;min-width:42px;padding:5px 7px;border:1px solid currentColor;border-radius:7px;text-align:center;font-family:var(--mono);font-size:11px;font-weight:720;text-transform:uppercase}
+.turn-call b,.turn-call small{display:block}.turn-call b{font-size:15px;font-weight:680;letter-spacing:-.012em}.turn-call small{margin-top:2px;font-size:12px;opacity:.78}
 .timer[data-tone="go"]  ~ .x, .court[data-tone="go"]   .track>i{background:var(--go)}
 .court[data-tone="warn"] .track>i{background:var(--warn)}
 .court[data-tone="over"] .track>i{background:var(--over)}
@@ -331,6 +340,10 @@ tr.through td:nth-child(1){color:var(--go);font-weight:700}
 tr.through td:nth-child(2){font-weight:620}
 tr.self td{background:var(--surface-2)}
 tr.self td:nth-child(2)::after{content:"du";margin-left:7px;font-family:var(--sans);font-size:10.5px;font-weight:620;color:var(--on-ink);background:var(--ink);padding:2px 5px;border-radius:5px;vertical-align:1px}
+tr.stand-click{cursor:pointer;outline:none}
+tr.stand-click td{transition:background-color .15s var(--e-out)}
+tr.stand-click td:nth-child(2)::before{content:"›";display:inline-block;margin-right:6px;color:var(--ink-3);font-size:17px;line-height:0;transform:translateY(1px)}
+tr.stand-click:hover td,tr.stand-click:focus-visible td{background:var(--surface-2)}
 .legend{margin-top:var(--s4);font-size:12.5px;line-height:1.5;color:var(--ink-2)}
 
 /* ---------------- bracket ---------------- */
@@ -427,6 +440,11 @@ tr.self td:nth-child(2)::after{content:"du";margin-left:7px;font-family:var(--sa
 .field{display:block;margin-top:var(--s4)}
 .field>span{display:block;font-size:12.5px;font-weight:560;color:var(--ink-2);margin-bottom:6px}
 .field>small{display:block;font-size:12px;color:var(--ink-3);margin-top:6px;line-height:1.45}
+.team-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.team-slot{display:grid;gap:5px;padding:9px;background:var(--surface);border:1px solid var(--line);border-radius:var(--r1)}
+.team-slot>span{font-size:11px;font-weight:620;color:var(--ink-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.team-slot:nth-child(-n+2)>span{color:var(--go)}
+.team-slot input{min-width:0;padding:9px 8px;font-size:14px}
 .choice{
   display:flex;align-items:center;gap:var(--s3);width:100%;text-align:left;margin-bottom:8px;
   padding:14px var(--s4);background:var(--surface);border:1px solid var(--line-2);border-radius:var(--r2);
@@ -522,7 +540,7 @@ body.tv .track{height:3px}
   <div class="mark" aria-hidden="true">
     <svg viewBox="0 0 32 32"><rect x="6" y="5" width="6" height="22" rx="1.6" fill="#fff"/><rect x="17" y="12" width="6" height="15" rx="1.6" fill="#58c48a"/></svg>
   </div>
-  <h1 id="authTitle">Kubbmesterskap</h1>
+  <h1 id="authTitle">Kilkast</h1>
   <p class="lede">Fire siffer fra arrangøren</p>
   <div class="dots" id="dots" role="status" aria-live="polite" aria-label="Kode"></div>
   <div class="pad-grid" id="keypad"></div>
@@ -533,7 +551,7 @@ body.tv .track{height:3px}
 <!-- ============ APP ============ -->
 <div id="app" class="hide">
   <header class="head">
-    <h1 id="title">Kubbmesterskap</h1>
+    <h1 id="title">Kilkast</h1>
     <button class="who" id="who" type="button"><span class="pip"></span><span id="whoName">Tilskuer</span></button>
   </header>
   <main id="view" tabindex="-1"></main>
@@ -590,7 +608,7 @@ const svg = (d, s) => `<svg viewBox="0 0 24 24" aria-hidden="true"${s?` style="$
 /* ---------- tilstand ---------- */
 const S = {
   code:null, role:null, teamId:null, teamName:null,
-  t:{ name:'Kubbmesterskap', match_seconds:2400, num_courts:6, phase:'setup', qualifiers_per_group:2 },
+  t:{ name:'Kilkast', match_seconds:2400, num_courts:6, phase:'setup', qualifiers_per_group:2 },
   teams:[], matches:[], standings:[],
   offset:0, tab:'courts', filter:'all', tv:false, ready:false, seenOnCourt:{}
 };
@@ -760,7 +778,22 @@ function announceNewCourtAssignments(previous){
 function notificationButton(){
   if(S.tv || S.role === 'guest' || !('Notification' in window)) return '';
   const enabled = notificationsEnabled();
-  return `<button class="btn ${enabled ? 'quiet' : 'ghost'} sm" data-do="notify">${enabled ? 'Varsler er på' : 'Varsle meg om min bane'}</button>`;
+  return `<button class="btn ${enabled ? 'quiet' : 'ghost'} sm" data-do="notify">${enabled ? 'Varsler er på' : 'Varsle meg når det er vår tur'}</button>`;
+}
+
+// Denne ligger øverst i appen helt til laget er ferdig på banen. Den virker
+// uten at nettleservarsler er slått på, så laget ser beskjeden når siden åpnes.
+function teamTurnNotice(){
+  if(!S.teamId || S.tv) return '';
+  const m = S.matches.find(x => ['ready','live','paused'].includes(x.status) && (x.team_a === S.teamId || x.team_b === S.teamId));
+  if(!m || !m.court) return '';
+  const rival = m.team_a === S.teamId ? tName(m.team_b) : tName(m.team_a);
+  const state = m.status === 'ready' ? 'ready' : m.status === 'live' ? 'live' : 'paused';
+  const title = m.status === 'ready' ? `Dere skal til bane ${m.court} nå` : m.status === 'live' ? `Dere spiller på bane ${m.court}` : `Kampen på bane ${m.court} er pauset`;
+  return `<aside class="turn-call" data-state="${state}" role="status" aria-live="assertive">
+    <span class="turn-mark">${m.status === 'ready' ? 'Nå' : 'Bane ' + m.court}</span>
+    <span><b>${esc(title)}</b><small>${esc(S.teamName)}${rival ? ` mot ${esc(rival)}` : ''}</small></span>
+  </aside>`;
 }
 
 let wakeLock = null;
@@ -802,8 +835,7 @@ async function finishExpiredMatches(){
    ================================================================ */
 const TABS = [
   { id:'courts',  label:'Baner',      icon:ICON.courts },
-  { id:'matches', label:'Kamper',     icon:ICON.matches },
-  { id:'table',   label:'Tabell',     icon:ICON.table },
+  { id:'groups',  label:'Puljer',     icon:ICON.table },
   { id:'playoff', label:'Sluttspill', icon:ICON.playoff },
   { id:'admin',   label:'Arrangør',   icon:ICON.admin }
 ];
@@ -825,8 +857,8 @@ function go(tab){
    RENDER
    ================================================================ */
 function paint(){
-  $('#title').textContent = S.t.name || 'Kubbmesterskap';
-  document.title = (S.t.name || 'Kubbmesterskap');
+  $('#title').textContent = S.t.name || 'Kilkast';
+  document.title = (S.t.name || 'Kilkast');
   const who = $('#who');
   who.dataset.role = S.role;
   $('#whoName').textContent = S.role === 'admin' ? (S.teamName ? `${S.teamName} · arrangør` : 'Arrangør') : S.role === 'team' ? (S.teamName || 'Lag') : 'Tilskuer';
@@ -834,11 +866,11 @@ function paint(){
   who.onclick = () => S.role === 'guest' ? location.reload() : askSignOut();
 
   const v = $('#view');
-  v.innerHTML =
+  v.innerHTML = teamTurnNotice() + (
     S.tab === 'courts'  ? viewCourts()  :
-    S.tab === 'matches' ? viewMatches() :
-    S.tab === 'table'   ? viewTable()   :
-    S.tab === 'playoff' ? viewPlayoff() : viewAdmin();
+    S.tab === 'groups'  ? viewGroups()  :
+    S.tab === 'playoff' ? viewPlayoff() : viewAdmin()
+  );
   wire();
   beat();
 }
@@ -854,22 +886,26 @@ function wire(){
       finish:  () => sheetResult(id),
       edit:    () => sheetResult(id, true),
       reopen:  () => rpc('kubb_reopen_match', { p_match:id }, 'Kampen er åpnet igjen'),
-      advance: () => rpc('kubb_admin_advance_tournament', {}, 'Turneringen er flyttet videre'),
+      advance: () => rpc('kubb_admin_advance_tournament', {}, 'Turneringen er oppdatert'),
       choose:  () => sheetChooseCourt(Number(n.dataset.court)),
       notify:  () => enableNotifications(),
       awake:   () => toggleWakeLock(),
       filter:  () => { S.filter = id; paint(); },
+      teamMatches: () => sheetTeamMatches(id),
       tv:      () => bigScreen(true),
       keys:    () => sheetKeys(),
       teams:   () => sheetTeams(),
       setup:   () => sheetSetup(),
-      begin:   () => ask('Generer fire puljer?',
-                  'De 16 lagene trekkes tilfeldig inn i fire puljer med fire lag. Alle kan se resultatet med én gang.',
-                  'Generer puljer', () => rpc('kubb_admin_generate_groups', {}, 'Puljene er trukket — gruppespillet er klart')),
+      begin:   () => ask('Trekk grupper?',
+                  'Lagene trekkes tilfeldig i fire puljer. A- og B-sluttspilltrærne blir synlige med én gang.',
+                  'Trekk grupper', () => rpc('kubb_admin_generate_groups', {}, 'Puljene er trukket — gruppespillet og sluttspilltrærne er klare')),
       wipe:    () => ask('Nullstille alt?', 'Lag, koder, kamper og resultater slettes. Dette kan ikke angres.',
                   'Slett alt', () => rpc('kubb_admin_reset', {}, 'Alt er nullstilt'), true),
       out:     () => askSignOut()
     }[a] || (()=>{}))();
+  });
+  $('#view').querySelectorAll('tr[data-do]').forEach(row => row.onkeydown = e => {
+    if(e.key === 'Enter' || e.key === ' '){ e.preventDefault(); row.click(); }
   });
 }
 
@@ -1037,11 +1073,11 @@ function countdown(id){
 /* ---------- kamprad ---------- */
 const STAGE = {
   group:'Første gruppespill', a_group:'A-gruppespill', b_group:'B-gruppespill',
-  r16:'Åttendedelsfinaler', qf:'Kvartfinaler', sf:'Semifinaler', final:'Finale'
+  r16:'Åttendedelsfinaler', qf:'Kvartfinaler', sf:'Semifinaler', final:'Finale', bronze:'Bronsefinale'
 };
 const isGroupStage = stage => ['group','a_group','b_group'].includes(stage);
 function stageName(stage){
-  const pool = stage && stage.match(/^([ab])_(r\d+|qf|sf|final)$/);
+  const pool = stage && stage.match(/^([ab])_(r\d+|qf|sf|final|bronze)$/);
   if(pool) return `${pool[1].toUpperCase()}-sluttspill · ${STAGE[pool[2]] || pool[2]}`;
   return STAGE[stage] || stage || 'Kamp';
 }
@@ -1107,8 +1143,8 @@ function viewMatches(){
   return h;
 }
 
-/* ---------- tabell ---------- */
-function viewTable(){
+/* ---------- puljer og kamper ---------- */
+function viewGroups(){
   if(!S.standings.length) return blank('Ingen lag ennå',
     isAdmin() ? 'Legg inn lagene, så bygger tabellen seg selv etter hvert som resultatene kommer inn.' : 'Tabellen fylles ut når lagene er lagt inn.',
     isAdmin() ? `<button class="btn primary" data-do="teams">Legg inn lag</button>` : '');
@@ -1120,18 +1156,32 @@ function viewTable(){
     h += `<div class="eyebrow">${esc(stageName(stage))} · pulje ${esc(g)} <small>${rows.length} lag</small></div>
       <div class="panel pad"><div class="tw"><table>
         <thead><tr><th>#</th><th>Lag</th><th>K</th><th>S</th><th>U</th><th>T</th><th>P</th></tr></thead>
-        <tbody>${rows.map(r => `<tr class="${stage === 'group' && r.pos <= 2 ? 'through' : ''} ${r.team_id === S.teamId ? 'self' : ''}">
+        <tbody>${rows.map(r => `<tr class="stand-click ${stage === 'group' && r.pos <= 2 ? 'through' : ''} ${r.team_id === S.teamId ? 'self' : ''}" data-do="teamMatches" data-id="${r.team_id}" role="button" tabindex="0" aria-label="Se kamper for ${esc(r.name)}">
           <td>${r.pos}</td><td>${esc(r.name)}</td><td>${r.played}</td><td>${r.wins}</td><td>${r.draws}</td><td>${r.losses}</td><td>${r.points}</td>
         </tr>`).join('')}</tbody></table></div></div>`;
   });
-  h += `<p class="legend">K kamper · S seire · U uavgjort · T tap · P poeng. Seier gir 3 poeng, uavgjort 1.
-    De to øverste i hver første pulje går til A-gruppespillet, og de to nederste til B-gruppespillet. Står to lag likt, teller flest seire, deretter kubbdifferanse.</p>`;
+  h += `<p class="legend">Trykk på et lag for å se spilte kamper og hva som kommer. K kamper · S seire · U uavgjort · T tap · P poeng. De to beste fra hver første pulje går til A-puljen; resten går til B-puljen.</p>`;
   return h;
+}
+
+function sheetTeamMatches(id){
+  const t = team(id); if(!t) return;
+  const rows = S.matches.filter(m => m.team_a === id || m.team_b === id);
+  const done = rows.filter(m => m.status === 'finished');
+  const coming = rows.filter(m => m.status !== 'finished');
+  const { box, close } = sheet(`
+    <h2>${esc(t.name)}</h2>
+    <p class="lede">${done.length} spilt · ${coming.length} kommende</p>
+    ${done.length ? `<div class="eyebrow">Spilt</div><div class="list">${done.map(matchRow).join('')}</div>` : ''}
+    ${coming.length ? `<div class="eyebrow" style="margin-top:18px">Kommende</div><div class="list">${coming.map(matchRow).join('')}</div>` : ''}
+    ${!rows.length ? `<p class="lede">Ingen kamper er satt opp for laget ennå.</p>` : ''}
+    <div style="margin-top:20px"><button class="btn ghost block" data-x="close">Lukk</button></div>`);
+  box.querySelector('[data-x="close"]').onclick = close;
 }
 
 /* ---------- sluttspill ---------- */
 function viewPlayoff(){
-  const po = S.matches.filter(m => /^[ab]_(r\d+|qf|sf|final)$/.test(m.stage));
+  const po = S.matches.filter(m => /^[ab]_(r\d+|qf|sf|final|bronze)$/.test(m.stage));
   if(!po.length){
     const rest = S.matches.filter(m => m.stage === 'group' && m.status !== 'finished').length;
     const finalRest = S.matches.filter(m => ['a_group','b_group'].includes(m.stage) && m.status !== 'finished').length;
@@ -1141,7 +1191,7 @@ function viewPlayoff(){
            : 'Begge gruppespill er ferdige. Utslagstrærne settes opp automatisk.',
       isAdmin() && !rest ? `<button class="btn primary" data-do="advance">Gå videre nå</button>` : '');
   }
-  const order = ['r16','qf','sf','final'];
+  const order = ['r16','qf','sf','final','bronze'];
   let h = '';
   ['a','b'].forEach(pool => {
     const poolMatches = po.filter(m => m.stage.startsWith(pool + '_'));
@@ -1170,8 +1220,9 @@ function viewPlayoff(){
 function viewAdmin(){
   const total = S.matches.length;
   const done = S.matches.filter(m => m.status === 'finished').length;
-  const rest = S.matches.filter(m => m.stage === 'group' && m.status !== 'finished').length;
-  const finalRest = S.matches.filter(m => ['a_group','b_group'].includes(m.stage) && m.status !== 'finished').length;
+  const isBeforeStart = S.t.phase === 'setup';
+  const groupCount = new Set(S.teams.map(t => t.grp)).size;
+  const teamSummary = S.teams.length ? `${S.teams.length} lag${groupCount > 1 ? ` i ${groupCount} puljer` : ' klare for trekning'}` : 'Fyll inn opptil 16 lag';
   const row = (act, icon, title, sub, cls) =>
     `<button class="row-btn ${cls || ''}" data-do="${act}"><span class="ico">${svg(icon)}</span>
       <span class="tx"><b>${title}</b><small>${sub}</small></span>
@@ -1185,18 +1236,21 @@ function viewAdmin(){
     </div>
     <div class="eyebrow">Før start</div>
     <div class="rows">
-      ${row('teams', ICON.people, 'Lag og puljer', S.teams.length ? `${S.teams.length} lag i ${new Set(S.teams.map(t=>t.grp)).size} puljer` : 'Ingen lag lagt inn ennå')}
+      ${row('teams', ICON.people, 'Lag og puljer', teamSummary)}
       ${row('setup', ICON.cog, 'Innstillinger', `${Math.round(S.t.match_seconds/60)} min · ${S.t.num_courts} baner · de to beste til A`)}
       ${row('keys', ICON.key, 'Koder til lagene', S.teams.length ? 'Del ut én kode per lag' : 'Kommer når lagene er lagt inn')}
+      ${isBeforeStart ? row('begin', ICON.play, 'Trekk grupper', S.teams.length >= 12 ? 'Fordeler lagene tilfeldig og viser begge sluttspilltrærne' : 'Fyll inn minst 12 lag først') : ''}
     </div>
     <div class="eyebrow">Under turneringen</div>
     <div class="rows">
-      ${row('begin', ICON.play, total ? 'Trekk fire puljer på nytt' : 'Generer fire puljer', 'Fordeler 16 lag tilfeldig i fire puljer med fire lag')}
-      ${row('advance', ICON.cup, 'Neste turneringstrinn', rest ? `${rest} kamper igjen i første gruppespill` : finalRest ? `${finalRest} kamper igjen i A- og B-gruppespillet` : 'Oppretter gruppespill eller utslagstrær ved behov')}
       ${row('tv', ICON.tv, 'Storskjerm', 'Alle baner og klokker i fullskjerm')}
+      ${!isBeforeStart ? row('advance', ICON.cup, 'Oppdater turneringen', 'Fyller neste trinn når alle kampene der er ferdige') : ''}
     </div>
     <div class="eyebrow">Farlig</div>
-    <div class="rows">${row('wipe', ICON.trash, 'Nullstill alt', 'Sletter lag, koder og resultater', 'warn')}</div>
+    <div class="rows">
+      ${!isBeforeStart ? row('begin', ICON.play, 'Trekk grupper på nytt', 'Starter første gruppespill på nytt med et nytt, synlig trekk', 'warn') : ''}
+      ${row('wipe', ICON.trash, 'Nullstill alt', 'Sletter lag, koder og resultater', 'warn')}
+    </div>
     <div style="margin-top:20px"><button class="btn ghost block" data-do="out">Logg ut</button></div>`;
 }
 
@@ -1324,24 +1378,23 @@ function sheetSetup(){
 }
 
 function sheetTeams(){
-  const text = S.teams.slice().sort((a,b) => (a.seed||0) - (b.seed||0)).map(t => t.name).join('\n');
-
+  const names = S.teams.slice().sort((a,b) => (a.seed||0) - (b.seed||0)).map(t => t.name);
+  const fields = Array.from({length:16}, (_, i) => `<label class="team-slot">
+    <span>Lag ${i + 1}${i < 2 ? ' · arrangør' : ''}</span>
+    <input class="team-name" maxlength="40" autocomplete="off" placeholder="Lagnavn" value="${esc(names[i] || '')}">
+  </label>`).join('');
   const { box, close } = sheet(`
     <h2>Lag og puljer</h2>
-    <p class="lede">Ett lag per linje. De to første lagene får arrangørtilgang med sin vanlige lagkode. Når turneringen starter trekkes 16 lag tilfeldig inn i fire puljer.</p>
-    <label class="field"><span>Lag</span>
-      <textarea id="t-list" rows="12" placeholder="Kubbekongene&#10;Pinnedryss&#10;Bakgårdsbanditt">${esc(text)}</textarea>
-      <small>Det må være nøyaktig 16 lag.</small></label>
-    <p class="lede" style="margin-top:18px">Når du lagrer får alle lag nye koder, og kamper som finnes blir slettet.</p>
+    <p class="lede">Fyll inn 12–16 lag. Tomme felt ignoreres; med 13–15 lag får noen puljer tre lag. De to første utfylte lagene får arrangørtilgang med sin egen lagkode.</p>
+    <div class="team-grid">${fields}</div>
+    <p class="lede" style="margin-top:18px">Når du lagrer får lagene nye koder, og en eventuell pågående turnering nullstilles.</p>
     <div class="cluster"><button class="btn" data-x="cancel">Avbryt</button><button class="btn primary" data-x="save">Lagre lag</button></div>`);
 
   box.querySelector('[data-x="cancel"]').onclick = close;
   box.querySelector('[data-x="save"]').onclick = async e => {
-    const lines = box.querySelector('#t-list').value.split('\n').map(s => s.trim()).filter(Boolean);
-    if(lines.length !== 16){ toast('Legg inn nøyaktig 16 lag', true); return; }
-    const teams = lines.map(l => {
-      return { name: l.slice(0,40), grp:'A' };
-    });
+    const entered = [...box.querySelectorAll('.team-name')].map(n => n.value.trim()).filter(Boolean);
+    if(entered.length < 12 || entered.length > 16){ toast('Legg inn mellom 12 og 16 lag', true); return; }
+    const teams = entered.map(name => ({ name, grp:'A' }));
     e.currentTarget.classList.add('busy');
     const ok = await rpc('kubb_admin_set_teams', { p_teams: teams }, `${teams.length} lag lagret`);
     if(ok) close(); else e.currentTarget.classList.remove('busy');
