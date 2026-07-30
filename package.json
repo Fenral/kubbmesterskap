@@ -4,7 +4,11 @@
   "description": "Turneringsverktøy for kubb – gruppespill, baner, nedtelling og sluttspill",
   "private": true,
   "license": "MIT",
+  "scripts": {
+    "test:db": "node verify-migrations.mjs"
+  },
   "devDependencies": {
+    "@electric-sql/pglite": "^0.5.4",
     "@playwright/test": "^1.47.2",
     "playwright": "^1.62.0"
   }
