@@ -346,6 +346,27 @@ tr.stand-click td:nth-child(2)::before{content:"›";display:inline-block;margin
 tr.stand-click:hover td,tr.stand-click:focus-visible td{background:var(--surface-2)}
 .legend{margin-top:var(--s4);font-size:12.5px;line-height:1.5;color:var(--ink-2)}
 
+/* ---------------- gruppevisning ---------------- */
+.group-tabs{display:flex;gap:7px;overflow-x:auto;padding:2px var(--s4) 6px;margin:0 calc(var(--s4) * -1);scrollbar-width:none;-webkit-overflow-scrolling:touch}
+.group-tabs::-webkit-scrollbar{display:none}
+.group-tabs button{flex:0 0 auto;padding:9px 12px;border:1px solid var(--line-2);border-radius:999px;background:var(--surface);color:var(--ink-2);font-size:12px;font-weight:620;line-height:1;white-space:nowrap;box-shadow:var(--shadow-1)}
+.group-tabs button[aria-current="page"]{border-color:var(--ink);background:var(--ink);color:var(--on-ink);box-shadow:none}
+.group-header{display:flex;align-items:flex-start;justify-content:space-between;gap:var(--s3);padding:var(--s4) var(--s4) var(--s3);background:var(--ink);color:var(--on-ink);border-radius:var(--r2) var(--r2) 0 0}
+.group-header .eyebrow{margin:0 0 7px;color:color-mix(in oklch,var(--on-ink) 65%,transparent)}
+.group-header .eyebrow small{color:inherit}
+.group-header h2{font-size:24px;font-weight:640;letter-spacing:-.035em}
+.group-count{flex:0 0 auto;padding:6px 8px;border-radius:7px;background:color-mix(in oklch,var(--on-ink) 12%,transparent);font:600 11px/1 var(--mono);font-variant-numeric:tabular-nums;white-space:nowrap}
+.group-board{border:1px solid var(--line);border-top:0;border-radius:0 0 var(--r2) var(--r2);background:var(--surface);padding:var(--s3) var(--s4) var(--s4);box-shadow:var(--shadow-1)}
+.group-board caption{font-size:11px;font-weight:600;color:var(--ink-3);padding:0 0 8px}
+.group-board th{padding-bottom:8px}
+.group-board td{padding-top:11px;padding-bottom:11px}
+.group-board tr.leading td:first-child{color:var(--go);font-weight:700}
+.group-board tr.leading td:nth-child(2){font-weight:650}
+.group-matches{margin-top:var(--s7)}
+.group-matches-head{display:flex;align-items:baseline;justify-content:space-between;gap:var(--s3);margin:0 0 var(--s3)}
+.group-matches-head h2{font-size:19px;font-weight:640;letter-spacing:-.025em}
+.group-matches-head span{color:var(--ink-3);font:600 11px/1 var(--mono);font-variant-numeric:tabular-nums;white-space:nowrap}
+
 /* ---------------- bracket ---------------- */
 .bracket{
   display:flex;gap:var(--s3);overflow-x:auto;align-items:stretch;
@@ -614,7 +635,7 @@ const S = {
   code:null, role:null, teamId:null, teamName:null,
   t:{ name:'Kilkast', match_seconds:2400, num_courts:6, phase:'setup', qualifiers_per_group:2 },
   teams:[], matches:[], standings:[],
-  offset:0, tab:'courts', filter:'all', tv:false, ready:false, seenOnCourt:{}
+  offset:0, tab:'courts', filter:'all', groupView:null, tv:false, ready:false, seenOnCourt:{}
 };
 const isAdmin = () => S.role === 'admin';
 const canAct  = () => S.role === 'admin' || S.role === 'team';
@@ -895,6 +916,7 @@ function wire(){
       notify:  () => enableNotifications(),
       awake:   () => toggleWakeLock(),
       filter:  () => { S.filter = id; paint(); },
+      group:   () => { S.groupView = id; paint(); },
       teamMatches: () => sheetTeamMatches(id),
       tv:      () => bigScreen(!S.tv),
       keys:    () => sheetKeys(),
@@ -1162,6 +1184,42 @@ function viewGroups(){
     isAdmin() ? 'Legg inn lagene, så bygger tabellen seg selv etter hvert som resultatene kommer inn.' : 'Tabellen fylles ut når lagene er lagt inn.',
     isAdmin() ? `<button class="btn primary" data-do="teams">Legg inn lag</button>` : '');
   const groups = [...new Set(S.standings.map(s => `${s.stage || 'group'}|${s.grp}`))].sort();
+  const selected = groups.includes(S.groupView) ? S.groupView : groups[0];
+  S.groupView = selected;
+  const [stage, g] = selected.split('|');
+  const rows = S.standings
+    .filter(s => (s.stage || 'group') === stage && s.grp === g)
+    .sort((x,y) => x.pos - y.pos);
+  const matches = S.matches
+    .filter(m => m.stage === stage && String(m.grp) === String(g))
+    .sort((a,b) => (a.round || 0) - (b.round || 0) || (a.order_no || 0) - (b.order_no || 0));
+  const finished = matches.filter(m => m.status === 'finished').length;
+  const groupLabel = `Gruppe ${g}`;
+  const tabLabel = key => {
+    const [tabStage, tabGroup] = key.split('|');
+    return tabStage === 'group' ? `Gruppe ${tabGroup}` : `${stageName(tabStage).replace('gruppespill','spill')} · ${tabGroup}`;
+  };
+  return `
+    <div class="group-tabs" role="navigation" aria-label="Velg gruppe">
+      ${groups.map(key => `<button type="button" data-do="group" data-id="${esc(key)}"${key === selected ? ' aria-current="page"' : ''}>${esc(tabLabel(key))}</button>`).join('')}
+    </div>
+    <section aria-labelledby="group-title">
+      <header class="group-header">
+        <div><div class="eyebrow">${esc(stageName(stage))} <small>${rows.length} lag</small></div><h2 id="group-title">${esc(groupLabel)}</h2></div>
+        <span class="group-count">${finished}/${matches.length} spilt</span>
+      </header>
+      <div class="group-board"><div class="tw"><table>
+        <caption>Stillingen i ${esc(groupLabel)}</caption>
+        <thead><tr><th>#</th><th>Lag</th><th>K</th><th>S</th><th>U</th><th>T</th><th>P</th></tr></thead>
+        <tbody>${rows.map(r => `<tr class="${stage === 'group' && r.pos <= 2 ? 'leading' : ''} ${r.team_id === S.teamId ? 'self' : ''}">
+          <td>${r.pos}</td><td>${esc(r.name)}</td><td>${r.played}</td><td>${r.wins}</td><td>${r.draws}</td><td>${r.losses}</td><td>${r.points}</td>
+        </tr>`).join('')}</tbody></table></div></div>
+    </section>
+    <section class="group-matches" aria-labelledby="group-matches-title">
+      <header class="group-matches-head"><h2 id="group-matches-title">Kamper i ${esc(groupLabel)}</h2><span>${matches.length} kamper</span></header>
+      ${matches.length ? `<div class="list">${matches.map(matchRow).join('')}</div>` : blank('Ingen kamper satt opp', 'Kampene for denne gruppen vises her så snart trekningen er gjennomført.')}
+    </section>
+    <p class="legend">K kamper · S seire · U uavgjort · T tap · P poeng. De to beste fra hver første pulje går til A-puljen; resten går til B-puljen.</p>`;
   let h = '';
   groups.forEach(key => {
     const [stage, g] = key.split('|');
