@@ -32,6 +32,8 @@ const teams = [
 ].map(([name, grp]) => ({ name, grp }));
 await db.query('select public.kubb_admin_set_teams($1, $2::jsonb)', ['ENDRE_MEG', JSON.stringify(teams)]);
 await db.query("select public.kubb_admin_settings('ENDRE_MEG', 'Testturnering', 40, 1, 2)");
+let codes = await scalar("select count(*)::int as n from public.kubb_codes where role = 'team' and team_id is not null");
+assert(codes.n === teams.length, `expected one team code per team, got ${codes.n}`);
 await db.query("select public.kubb_admin_start_tournament('ENDRE_MEG')");
 
 let count = await scalar("select count(*)::int as n from public.kubb_matches where stage = 'group'");
