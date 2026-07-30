@@ -59,6 +59,14 @@ await db.query('update public.kubb_matches set started_at = now() - interval \'4
 await db.query("select public.kubb_finish_expired_matches('ENDRE_MEG')");
 let expired = await scalar(`select status, result from public.kubb_matches where id = '${expiring.id}'`);
 assert(expired.status === 'finished' && expired.result === 'draw', 'expired group match did not become a draw');
+let replacement = await scalar(`select status from public.kubb_matches where court = 1`);
+assert(replacement.status === 'ready', 'a new match was not automatically assigned to the freed court');
+
+const decided = await scalar("select id, team_a, team_b from public.kubb_matches where stage = 'group' and status <> 'finished' limit 1");
+await db.query('select public.kubb_finish_match($1, $2, $3)', ['ENDRE_MEG', decided.id, 'a']);
+let points = await db.query("select team_id, points from public.kubb_standings where stage = 'group' and team_id in ($1, $2)", [decided.team_a, decided.team_b]);
+assert(points.rows.find(row => row.team_id === decided.team_a).points === 3, 'a group winner did not receive three points');
+assert(points.rows.find(row => row.team_id === decided.team_b).points === 0, 'a group loser did not receive zero points');
 
 const firstStage = await db.query("select id from public.kubb_matches where stage = 'group' and status <> 'finished'");
 for (const row of firstStage.rows) {
@@ -66,6 +74,22 @@ for (const row of firstStage.rows) {
 }
 count = await scalar("select count(*)::int as a, (select count(*)::int from public.kubb_matches where stage = 'b_group') as b from public.kubb_matches where stage = 'a_group'");
 assert(count.a === 6 && count.b === 6, `expected six A and six B matches, got ${count.a} and ${count.b}`);
+let misplaced = await scalar(`
+  with final_teams as (
+    select distinct stage, team_a as team_id from public.kubb_matches where stage in ('a_group', 'b_group')
+    union
+    select distinct stage, team_b from public.kubb_matches where stage in ('a_group', 'b_group')
+  ), original_size as (
+    select grp, count(*)::int as n from public.kubb_standings where stage = 'group' group by grp
+  )
+  select count(*)::int as n
+  from final_teams f
+  join public.kubb_standings s on s.stage = 'group' and s.team_id = f.team_id
+  join original_size z on z.grp = s.grp
+  where (f.stage = 'a_group' and s.pos > 2)
+     or (f.stage = 'b_group' and s.pos < z.n - 1)
+`);
+assert(misplaced.n === 0, 'teams were placed in the wrong A or B group');
 
 const secondStage = await db.query("select id from public.kubb_matches where stage in ('a_group', 'b_group')");
 for (const row of secondStage.rows) {
