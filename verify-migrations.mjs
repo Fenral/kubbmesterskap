@@ -15,7 +15,8 @@ const migrations = [
   '20260727214106_kubb_fix_unqualified_deletes.sql',
   '20260730210000_kubb_final_groups_and_courts.sql',
   '20260730220000_kubb_admin_teams_and_fair_draw.sql',
-  '20260730230000_kilkast_flexible_groups_and_playoff_tree.sql'
+  '20260730230000_kilkast_flexible_groups_and_playoff_tree.sql',
+  '20260730234759_direct_semifinals.sql'
 ];
 
 const assert = (condition, message) => { if (!condition) throw new Error(message); };
@@ -110,8 +111,8 @@ const secondStage = await db.query("select id from public.kubb_matches where sta
 for (const row of secondStage.rows) {
   await db.query('select public.kubb_finish_match($1, $2, $3)', ['ENDRE_MEG', row.id, 'draw']);
 }
-let seeded = await scalar("select count(*)::int as a, (select count(*)::int from public.kubb_matches where stage = 'b_sf' and team_a is not null and team_b is not null) as b from public.kubb_matches where stage = 'a_qf' and team_a is not null and team_b is not null");
-assert(seeded.a === 4 && seeded.b === 2, `expected seeded A and B playoff openings, got ${seeded.a} A and ${seeded.b} B`);
+let seeded = await scalar("select count(*)::int as a, (select count(*)::int from public.kubb_matches where stage = 'b_sf' and team_a is not null and team_b is not null) as b from public.kubb_matches where stage = 'a_sf' and team_a is not null and team_b is not null");
+assert(seeded.a === 2 && seeded.b === 2, `expected seeded A and B semifinals, got ${seeded.a} A and ${seeded.b} B`);
 
 console.log('Migration and Kilkast tournament-flow checks passed.');
 await db.close();

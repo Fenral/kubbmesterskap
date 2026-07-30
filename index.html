@@ -395,6 +395,24 @@ tr.stand-click:hover td,tr.stand-click:focus-visible td{background:var(--surface
 .champ .t{font-size:12px;opacity:.7;font-weight:520}
 .champ .n{font-size:21px;font-weight:660;letter-spacing:-.024em;margin-top:1px}
 
+/* ---------------- knockout ---------------- */
+.knockout-pool{margin-bottom:var(--s8)}
+.knockout-pool:last-child{margin-bottom:0}
+.knockout-pool-head{display:flex;align-items:center;gap:10px;margin-bottom:var(--s3)}
+.knockout-pool-head b{display:grid;place-items:center;width:32px;height:32px;border-radius:50%;background:var(--ink);color:var(--on-ink);font:700 18px/.8 var(--mono)}
+.knockout-pool-head span{font-size:12px;font-weight:620;color:var(--ink-3);letter-spacing:.02em}
+.knockout-pool .bracket{gap:22px;padding:var(--s3) 2px var(--s4);scroll-snap-type:x mandatory}
+.knockout-pool .round{min-width:188px;gap:10px}
+.knockout-pool .round>h3{font:620 10px/1 var(--mono);letter-spacing:.075em;text-transform:uppercase;color:var(--ink-3);padding-left:3px}
+.knockout-pool .round>.ties{gap:12px}
+.knockout-pool .tie{position:relative;min-height:70px;padding:11px 12px;border-radius:var(--r1);box-shadow:var(--shadow-1)}
+.knockout-pool .round:not(:last-child) .tie::after{content:"";position:absolute;right:-23px;top:50%;width:22px;height:1px;background:var(--line-2)}
+.knockout-pool .tie[data-state="live"]{border-color:var(--go);box-shadow:0 0 0 2px var(--go-w),var(--shadow-1)}
+.knockout-pool .tie .cap{min-height:12px;margin-bottom:8px;font:620 10px/1 var(--mono);letter-spacing:.055em;text-transform:uppercase}
+.knockout-pool .tie .s{padding:3px 0;font-size:14.5px}
+.knockout-pool .tie .s.won::after{content:"✓";color:var(--go);font-weight:700}
+.knockout-pool .tie .s.lost{opacity:.58}
+
 /* ---------------- tomme tilstander ---------------- */
 .blank{text-align:center;padding:var(--s8) var(--s5)}
 .blank h2{font-size:17px;margin-bottom:6px}
@@ -860,8 +878,8 @@ async function finishExpiredMatches(){
    ================================================================ */
 const TABS = [
   { id:'courts',  label:'Baner',      icon:ICON.courts },
-  { id:'groups',  label:'Puljer',     icon:ICON.table },
-  { id:'playoff', label:'Sluttspill', icon:ICON.playoff },
+  { id:'groups',  label:'Gruppespill',icon:ICON.table },
+  { id:'playoff', label:'Knockout',   icon:ICON.playoff },
   { id:'admin',   label:'Arrangør',   icon:ICON.admin }
 ];
 function buildNav(){
@@ -1270,9 +1288,9 @@ function viewPlayoff(){
     const fin = poolMatches.find(m => m.stage === `${pool}_final` && m.status === 'finished');
     if(fin){
       const w = fin.result === 'a' ? tName(fin.team_a) : tName(fin.team_b);
-      h += `<div class="champ">${svg(ICON.cup)}<div><div class="t">Vinner av ${pool.toUpperCase()}-sluttspill</div><div class="n">${esc(w || '')}</div></div></div>`;
+      h += `<div class="champ">${svg(ICON.cup)}<div><div class="t">Vinner</div><div class="n">${esc(w || '')}</div></div></div>`;
     }
-    h += `<div class="eyebrow">${pool.toUpperCase()}-sluttspill</div><div class="bracket" id="bracket-${pool}">` +
+    h += `<section class="knockout-pool"><header class="knockout-pool-head"><b>${pool.toUpperCase()}</b><span>Knockout</span></header><div class="bracket" id="bracket-${pool}">` +
       order.filter(s => poolMatches.some(m => m.stage === `${pool}_${s}`)).map(s => `
         <section class="round"><h3>${esc(STAGE[s] || s)}</h3><div class="ties">` +
         poolMatches.filter(m => m.stage === `${pool}_${s}`).sort((a,b) => (a.slot||0) - (b.slot||0)).map(m => {
@@ -1282,7 +1300,7 @@ function viewPlayoff(){
           const cap = [m.label, m.court ? `bane ${m.court}` : '', m.status === 'live' ? 'spilles nå' : ''].filter(Boolean).join(' · ');
           const row = (name, src, won, lost) => `<div class="s ${won ? 'won' : lost ? 'lost' : ''} ${name ? '' : 'tbd'}"><span>${esc(name || src || '–')}</span></div>`;
           return `<article class="tie" data-state="${running ? 'live' : ''}"><div class="cap">${esc(cap)}</div>${row(a, m.source_a, aw, done && bw)}${row(b, m.source_b, bw, done && aw)}</article>`;
-        }).join('') + `</div></section>`).join('') + `</div>`;
+        }).join('') + `</div></section>`).join('') + `</div></section>`;
   });
   return h;
 }

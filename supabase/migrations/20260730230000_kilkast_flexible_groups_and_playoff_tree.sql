@@ -279,10 +279,10 @@ end $$;
 
 create or replace function public.kubb_admin_start_tournament(p_code text)
 returns jsonb language plpgsql security definer set search_path = public as $$
-declare g record; arr uuid[]; group_matches int := 0; playoff_matches int := 0; gi int := 0; v_count int;
+declare g record; arr uuid[]; group_matches int := 0; playoff_matches int := 0; gi int := 0;
 begin
   perform public.kubb_require(p_code, true);
-  delete from public.kubb_matches;
+  delete from public.kubb_matches where id is not null;
 
   for g in select distinct grp from public.kubb_teams order by grp loop
     gi := gi + 1;
@@ -290,9 +290,8 @@ begin
       from public.kubb_teams where grp = g.grp;
     group_matches := group_matches + public.kubb_make_round_robin('group', g.grp, arr, gi * 10000, 'Pulje ' || g.grp);
   end loop;
-  select count(*) into v_count from public.kubb_teams;
-  playoff_matches := public.kubb_build_prepared_pool_bracket('a', 8, 'A-sluttspill', 400000);
-  playoff_matches := playoff_matches + public.kubb_build_prepared_pool_bracket('b', v_count - 8, 'B-sluttspill', 500000);
+  playoff_matches := public.kubb_build_prepared_pool_bracket('a', 4, 'A-sluttspill', 400000);
+  playoff_matches := playoff_matches + public.kubb_build_prepared_pool_bracket('b', 4, 'B-sluttspill', 500000);
   update public.kubb_tournament set phase = 'group', updated_at = now() where id = 1;
   perform public.kubb_assign_courts();
   return jsonb_build_object('ok', true, 'group_matches', group_matches, 'playoff_matches', playoff_matches);
@@ -392,14 +391,12 @@ revoke execute on function public.kubb_seed_pool_playoffs() from public, anon, a
 -- Det som allerede er en testturnering i første gruppespill får trærne uten
 -- å forstyrre kamper som pågår.
 do $$
-declare v_count int;
 begin
-  select count(*) into v_count from public.kubb_teams;
-  if v_count between 12 and 16
+  if (select count(*) from public.kubb_teams) between 12 and 16
      and exists (select 1 from public.kubb_matches where stage = 'group')
      and not exists (select 1 from public.kubb_matches where stage like 'a_%' or stage like 'b_%') then
-    perform public.kubb_build_prepared_pool_bracket('a', 8, 'A-sluttspill', 400000);
-    perform public.kubb_build_prepared_pool_bracket('b', v_count - 8, 'B-sluttspill', 500000);
+    perform public.kubb_build_prepared_pool_bracket('a', 4, 'A-sluttspill', 400000);
+    perform public.kubb_build_prepared_pool_bracket('b', 4, 'B-sluttspill', 500000);
   end if;
   update public.kubb_tournament set name = 'Kilkast', updated_at = now() where id = 1;
 end $$;
