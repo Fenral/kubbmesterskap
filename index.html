@@ -264,7 +264,6 @@ main{max-width:960px;margin:0 auto;padding:var(--s4) var(--s4) var(--s7)}
 }
 .side.won b{font-weight:680}
 .side.lost b{color:var(--ink-3);font-weight:480}
-.side .kubbs{flex:0 0 auto;font-size:13px;color:var(--ink-3)}
 .side .dash{flex:0 0 auto;font-size:11px;font-weight:600;color:var(--ink-3);letter-spacing:.06em}
 
 .timer{flex:0 0 auto;text-align:right;display:grid;gap:2px;justify-items:end}
@@ -456,9 +455,6 @@ tr.stand-click:hover td,tr.stand-click:focus-visible td{background:var(--surface
 .choice b{display:block;font-size:15px;font-weight:580;letter-spacing:-.014em}
 .choice small{display:block;font-size:12.5px;color:var(--ink-3);margin-top:1px}
 .choice.accent{border-color:var(--ink)}
-.kubbfields{display:grid;grid-template-columns:1fr 1fr;gap:var(--s2)}
-.kubbfields label{display:grid;gap:5px;min-width:0}
-.kubbfields em{font-style:normal;font-size:12px;color:var(--ink-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .choice.accent .k{background:var(--ink);color:var(--on-ink)}
 
 .keys{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px}
@@ -514,6 +510,13 @@ body.tv .free{display:flex;align-items:center;justify-content:center;flex:1}
 body.tv .side b{white-space:normal;overflow:visible;text-overflow:clip;line-height:1.15}
 body.tv .sides{gap:6px}
 body.tv .court-actions,body.tv .queue-block{display:none}
+body.tv .court.overview .court-top{padding:clamp(9px,1vw,15px) clamp(11px,1.2vw,18px)}
+body.tv .court.overview .court-top .cap{font-size:clamp(13px,1.15vw,18px);color:var(--ink)}
+body.tv .court.overview .court-body{padding:clamp(16px,2vw,34px);gap:clamp(14px,2vw,34px)}
+body.tv .court.overview .sides{gap:clamp(8px,.8vw,14px)}
+body.tv .court.overview .side b{font-size:clamp(20px,2.2vw,40px);font-weight:640}
+body.tv .court.overview .timer .t{font-size:clamp(42px,5.8vw,92px)}
+body.tv .court.overview .overview-free{display:grid;place-items:center;flex:1;padding:var(--s5);font-size:clamp(18px,2vw,32px);color:var(--ink-3)}
 body.tv .timer .t{font-size:clamp(34px,4.6vw,76px)}
 body.tv .side b{font-size:clamp(15px,1.55vw,26px)}
 body.tv .court-top .cap{font-size:clamp(11px,.85vw,15px)}
@@ -893,7 +896,7 @@ function wire(){
       awake:   () => toggleWakeLock(),
       filter:  () => { S.filter = id; paint(); },
       teamMatches: () => sheetTeamMatches(id),
-      tv:      () => bigScreen(true),
+      tv:      () => bigScreen(!S.tv),
       keys:    () => sheetKeys(),
       teams:   () => sheetTeams(),
       setup:   () => sheetSetup(),
@@ -938,22 +941,13 @@ function viewCourts(){
       isAdmin() ? `<button class="btn primary" data-do="teams">Legg inn lag</button>` : '');
   }
   let h = '';
-  h += notificationButton() + wakeLockButton();
-  if(S.tv){
-    const live = S.matches.filter(m => m.status === 'live').length;
-    const rest = S.matches.filter(m => m.status !== 'finished').length;
-    h += `<div class="tvhead"><h1>${esc(S.t.name)}</h1><div class="sub">${live} kamper spilles nå · ${rest} igjen totalt</div></div>`;
-  }
+  h += S.tv ? '' : notificationButton() + wakeLockButton() + `<button class="btn quiet sm" data-do="tv" aria-pressed="false">Kun oversikt</button>`;
   if(S.tv){
     const cols = n <= 2 ? n : n <= 4 ? 2 : n <= 9 ? 3 : n <= 16 ? 4 : 5;
     document.body.style.setProperty('--tvcols', cols);
   }
   const order = [];
   for(let c = 1; c <= n; c++) order.push(c);
-  if(S.teamId && !S.tv){
-    const mineFirst = order.find(c => { const m = onCourt(c); return m && (m.team_a === S.teamId || m.team_b === S.teamId); });
-    if(mineFirst) order.splice(0, 0, ...order.splice(order.indexOf(mineFirst), 1));
-  }
   h += `<div class="courts">`;
   order.forEach(c => { h += courtCard(c, onCourt(c)); });
   h += `</div>`;
@@ -967,6 +961,7 @@ function viewCourts(){
 }
 
 function courtCard(c, m){
+  if(S.tv) return overviewCourtCard(c, m);
   if(!m){
     return `<article class="court" data-state="free">
       <div class="court-top"><span class="court-no">${c}</span><span class="cap">Bane ${c}</span></div>
@@ -1015,6 +1010,24 @@ function courtCard(c, m){
   </article>`;
 }
 
+function overviewCourtCard(c, m){
+  if(!m){
+    return `<article class="court overview" data-state="free">
+      <div class="court-top"><span class="court-no">${c}</span><span class="cap">Bane ${c}</span></div>
+      <div class="overview-free">Ledig bane</div></article>`;
+  }
+  const a = tName(m.team_a) || m.source_a || '?';
+  const b = tName(m.team_b) || m.source_b || '?';
+  const running = m.status === 'live' || m.status === 'paused';
+  return `<article class="court overview" id="c-${m.id}" data-state="${running ? 'live' : 'ready'}" data-tone="idle">
+    <div class="court-top"><span class="court-no">${c}</span><span class="cap">Bane ${c}</span></div>
+    <div class="court-body">
+      <div class="sides"><div class="side"><b>${esc(a)}</b></div><div class="side"><b>${esc(b)}</b></div></div>
+      <div class="timer" data-timer="${m.id}" data-tone="idle"><div class="t num">${clock(S.t.match_seconds)}</div></div>
+    </div>
+  </article>`;
+}
+
 /* live-klokke: oppdaterer tekst, ikke DOM-struktur */
 function beat(){
   document.querySelectorAll('[data-timer]').forEach(node => {
@@ -1032,7 +1045,7 @@ function beat(){
           : 'Spilles nå';
     }
     const t = node.querySelector('.t'); if(t.textContent !== txt) t.textContent = txt;
-    const l = node.querySelector('.lab'); if(l.textContent !== lab) l.textContent = lab;
+    const l = node.querySelector('.lab'); if(l && l.textContent !== lab) l.textContent = lab;
     node.dataset.tone = tn;
     const card = document.getElementById('c-' + m.id); if(card) card.dataset.tone = tn;
     const bar = document.querySelector(`[data-track="${m.id}"]`); if(bar) bar.style.transform = `scaleX(${frac})`;
@@ -1094,8 +1107,6 @@ function matchRow(m){
   const done = m.status === 'finished';
   const aw = done && m.result === 'a', bw = done && m.result === 'b';
   const mine = m.team_a === S.teamId || m.team_b === S.teamId;
-  const sa = m.score_a != null ? m.score_a : '';
-  const sb_ = m.score_b != null ? m.score_b : '';
 
   let chip;
   if(m.status === 'live')        chip = `<span class="chip live num" data-tick="${m.id}">--:--</span>`;
@@ -1107,8 +1118,8 @@ function matchRow(m){
   const bits = [m.label || '', m.court ? `bane ${m.court}` : '', mine ? 'ditt lag' : ''].filter(Boolean);
   return `<article class="mrow${done ? ' settled' : ''}">
     <div class="sides">
-      <div class="side ${aw ? 'won' : bw ? 'lost' : ''}"><b>${esc(a)}</b>${sa !== '' ? `<span class="kubbs num">${sa}</span>` : ''}</div>
-      <div class="side ${bw ? 'won' : aw ? 'lost' : ''}"><b>${esc(b)}</b>${sb_ !== '' ? `<span class="kubbs num">${sb_}</span>` : ''}</div>
+      <div class="side ${aw ? 'won' : bw ? 'lost' : ''}"><b>${esc(a)}</b></div>
+      <div class="side ${bw ? 'won' : aw ? 'lost' : ''}"><b>${esc(b)}</b></div>
       <div class="meta">${esc(bits.join(' · '))}</div>
     </div>
     ${chip}
@@ -1211,8 +1222,8 @@ function viewPlayoff(){
           const aw = done && m.result === 'a', bw = done && m.result === 'b';
           const running = ['live','paused','ready'].includes(m.status);
           const cap = [m.label, m.court ? `bane ${m.court}` : '', m.status === 'live' ? 'spilles nå' : ''].filter(Boolean).join(' · ');
-          const row = (name, src, won, lost, sc) => `<div class="s ${won ? 'won' : lost ? 'lost' : ''} ${name ? '' : 'tbd'}"><span>${esc(name || src || '–')}</span><span>${sc ?? ''}</span></div>`;
-          return `<article class="tie" data-state="${running ? 'live' : ''}"><div class="cap">${esc(cap)}</div>${row(a, m.source_a, aw, done && bw, m.score_a)}${row(b, m.source_b, bw, done && aw, m.score_b)}</article>`;
+          const row = (name, src, won, lost) => `<div class="s ${won ? 'won' : lost ? 'lost' : ''} ${name ? '' : 'tbd'}"><span>${esc(name || src || '–')}</span></div>`;
+          return `<article class="tie" data-state="${running ? 'live' : ''}"><div class="cap">${esc(cap)}</div>${row(a, m.source_a, aw, done && bw)}${row(b, m.source_b, bw, done && aw)}</article>`;
         }).join('') + `</div></section>`).join('') + `</div>`;
   });
   return h;
@@ -1245,7 +1256,7 @@ function viewAdmin(){
     </div>
     <div class="eyebrow">Under turneringen</div>
     <div class="rows">
-      ${row('tv', ICON.tv, 'Storskjerm', 'Alle baner og klokker i fullskjerm')}
+      ${row('tv', ICON.tv, 'Kun oversikt', 'Bare bane, lag og klokke i fullskjerm')}
       ${!isBeforeStart ? row('advance', ICON.cup, 'Oppdater turneringen', 'Fyller neste trinn når alle kampene der er ferdige') : ''}
     </div>
     <div class="eyebrow">Farlig</div>
@@ -1319,20 +1330,12 @@ function sheetResult(id, editing = false){
     <button class="choice accent" data-r="a"><span><b>${esc(a)}</b><small>3 poeng</small></span></button>
     <button class="choice accent" data-r="b"><span><b>${esc(b)}</b><small>3 poeng</small></span></button>
     ${isGroupStage(m.stage) ? `<button class="choice" data-r="draw"><span><b>Uavgjort</b><small>1 poeng til hvert lag</small></span></button>` : ''}
-    <div class="field"><span>Kubber igjen på banen (valgfritt)</span>
-      <div class="kubbfields">
-        <label><em>${esc(a)}</em><input id="ka" type="number" min="0" max="20" inputmode="numeric" placeholder="0" value="${editing && m.score_a != null ? m.score_a : ''}"></label>
-        <label><em>${esc(b)}</em><input id="kb" type="number" min="0" max="20" inputmode="numeric" placeholder="0" value="${editing && m.score_b != null ? m.score_b : ''}"></label>
-      </div>
-      <small>Brukes bare til å skille lag som står likt på poeng.</small></div>
     <div style="margin-top:20px"><button class="btn ghost block" data-x="cancel">Avbryt</button></div>`);
 
-  const val = q => { const v = box.querySelector(q).value.trim(); return v === '' ? null : Math.max(0, parseInt(v,10) || 0); };
   box.querySelectorAll('[data-r]').forEach(btn => btn.onclick = () => {
     const res = btn.dataset.r;
-    const p_score_a = val('#ka'), p_score_b = val('#kb');
     close();
-    rpc(editing ? 'kubb_admin_correct_result' : 'kubb_finish_match', { p_match:id, p_result:res, p_score_a, p_score_b }, editing ? 'Resultatet er oppdatert' : 'Resultat lagret — ny kamp settes på banen');
+    rpc(editing ? 'kubb_admin_correct_result' : 'kubb_finish_match', { p_match:id, p_result:res }, editing ? 'Resultatet er oppdatert' : 'Resultat lagret — ny kamp settes på banen');
   });
   box.querySelector('[data-x="cancel"]').onclick = close;
 }
@@ -1444,7 +1447,7 @@ function bigScreen(on){
   if(on){
     S.tab = 'courts';
     const b = el('button', 'btn sm tv-exit');
-    b.textContent = 'Avslutt storskjerm';
+    b.textContent = 'Avslutt oversikt';
     b.onclick = () => { bigScreen(false); S.tab = 'admin'; buildNav(); paint(); };
     document.body.appendChild(b);
     document.documentElement.requestFullscreen?.().catch(()=>{});
