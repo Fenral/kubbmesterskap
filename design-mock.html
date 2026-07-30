@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="no">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Kilkast — fem visuelle retninger</title>
+  <style>
+    :root { color-scheme: light; }
+    * { box-sizing: border-box; }
+    body { margin:0; min-width:320px; background:#10151b; color:#f6f7f7; font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; }
+    .intro { max-width:1180px; margin:0 auto; padding:clamp(30px,6vw,80px) 24px 34px; }
+    .eyebrow { display:flex; align-items:center; gap:9px; margin:0 0 12px; color:#b9e769; font:700 11px/1 ui-monospace,SFMono-Regular,Consolas,monospace; letter-spacing:.13em; text-transform:uppercase; }
+    .eyebrow i { width:8px; height:8px; border-radius:99px; background:currentColor; box-shadow:0 0 0 5px #b9e76922; }
+    h1 { max-width:750px; margin:0; font-family:"Arial Narrow",Impact,sans-serif; font-size:clamp(42px,8vw,88px); line-height:.89; letter-spacing:-.065em; text-transform:uppercase; }
+    .lead { max-width:650px; margin:22px 0 0; color:#c5cbd2; font-size:17px; line-height:1.55; }
+    .rule { height:1px; max-width:1180px; margin:0 auto; background:#ffffff24; }
+    .directions { display:grid; grid-template-columns:repeat(5,minmax(280px,1fr)); gap:20px; max-width:1600px; margin:0 auto; padding:32px 24px 64px; overflow-x:auto; }
+    .direction { --paper:#f7f8f5; --ink:#102a43; --card:#fff; --line:#dce2e0; --accent:#ff5a36; --soft:#e6f4cf; --muted:#536273; --live:#ff5a36; min-width:280px; border-radius:18px; overflow:hidden; background:var(--paper); color:var(--ink); box-shadow:0 18px 50px #00000036; }
+    .direction.summer { --paper:#fff; --ink:#101820; --card:#fff; --line:#dce4f1; --accent:#155eef; --soft:#fff2b8; --muted:#5f6978; --live:#d53427; }
+    .direction.forest { --paper:#faf8f2; --ink:#173b32; --card:#fffefb; --line:#d9dfd6; --accent:#0b6e4f; --soft:#e1ecd7; --muted:#60736b; --live:#d84a0c; }
+    .direction.festival { --paper:#fffdf8; --ink:#242424; --card:#fff; --line:#e6ded1; --accent:#2a6fdc; --soft:#fff0ba; --muted:#6b6761; --live:#e63946; }
+    .direction.protocol { --paper:#fff; --ink:#111827; --card:#fff; --line:#cfd4dc; --accent:#0f766e; --soft:#e6f3f0; --muted:#596170; --live:#d72638; border-radius:2px; }
+    .direction-top { min-height:140px; padding:18px; color:#fff; background:var(--ink); position:relative; overflow:hidden; }
+    .direction-top:after { content:""; position:absolute; right:-38px; bottom:-52px; width:150px; height:150px; border:18px solid color-mix(in srgb,var(--accent) 80%,white); opacity:.95; border-radius:50%; }
+    .forest .direction-top:after { border-radius:0; transform:rotate(45deg); }
+    .protocol .direction-top:after { width:120px; height:4px; right:-5px; bottom:21px; border:0; background:var(--accent); box-shadow:0 16px 0 var(--accent),0 32px 0 var(--accent); }
+    .name { position:relative; z-index:1; font:800 11px/1.1 ui-monospace,SFMono-Regular,Consolas,monospace; letter-spacing:.13em; text-transform:uppercase; color:var(--soft); }
+    .direction-top h2 { position:relative; z-index:1; max-width:190px; margin:12px 0 0; font-family:"Arial Narrow",Impact,sans-serif; font-size:38px; line-height:.9; letter-spacing:-.045em; text-transform:uppercase; }
+    .palette { position:relative; z-index:1; display:flex; gap:5px; margin-top:14px; }
+    .palette span { width:17px; height:17px; border-radius:50%; border:1px solid #ffffff55; }
+    .palette span:nth-child(1){background:var(--paper)} .palette span:nth-child(2){background:var(--ink)} .palette span:nth-child(3){background:var(--accent)} .palette span:nth-child(4){background:var(--soft)}
+    .phone { padding:12px; }
+    .appbar { display:flex; justify-content:space-between; align-items:center; padding:3px 1px 12px; }
+    .brand { font:900 16px/.9 "Arial Narrow",Impact,sans-serif; letter-spacing:-.04em; text-transform:uppercase; }
+    .small-live { display:flex; align-items:center; gap:5px; font:800 9px/1 ui-monospace,SFMono-Regular,Consolas,monospace; color:var(--live); letter-spacing:.08em; }
+    .small-live:before { content:""; width:6px; height:6px; border-radius:50%; background:currentColor; }
+    .tabs { display:grid; grid-template-columns:1fr 1fr; border:1px solid var(--line); border-radius:10px; padding:3px; margin-bottom:12px; background:var(--card); }
+    .tab { padding:8px 3px; text-align:center; color:var(--muted); font-size:10px; font-weight:700; }
+    .tab.on { border-radius:7px; background:var(--ink); color:#fff; }
+    .section-head { display:flex; justify-content:space-between; align-items:end; margin:17px 1px 7px; }
+    .section-head h3 { margin:0; font-family:"Arial Narrow",Impact,sans-serif; font-size:21px; line-height:1; letter-spacing:-.035em; text-transform:uppercase; }
+    .section-head span { color:var(--muted); font:700 9px/1 ui-monospace,SFMono-Regular,Consolas,monospace; letter-spacing:.07em; }
+    .court { position:relative; display:grid; grid-template-columns:38px 1fr; gap:10px; padding:11px; background:var(--card); border:1px solid var(--line); border-radius:11px; margin-top:7px; }
+    .court.no2 { opacity:.93; }
+    .court-num { display:grid; place-items:center; min-height:42px; border-radius:8px; color:#fff; background:var(--ink); font:900 22px/.9 "Arial Narrow",Impact,sans-serif; }
+    .court.live .court-num { background:var(--live); }
+    .court-main { min-width:0; }
+    .court-meta { display:flex; justify-content:space-between; color:var(--muted); font:700 8px/1 ui-monospace,SFMono-Regular,Consolas,monospace; letter-spacing:.06em; text-transform:uppercase; }
+    .teams { display:grid; grid-template-columns:1fr auto 1fr; gap:5px; align-items:center; margin-top:6px; font-size:11px; font-weight:800; letter-spacing:-.025em; }
+    .teams b:last-child { text-align:right; }
+    .teams em { color:var(--accent); font-style:normal; font-size:9px; }
+    .time { position:absolute; right:11px; bottom:10px; padding:3px 5px; border-radius:4px; color:var(--live); background:color-mix(in srgb,var(--live) 10%,var(--card)); font:800 10px/1 ui-monospace,SFMono-Regular,Consolas,monospace; }
+    .group-card { overflow:hidden; border:1px solid var(--line); border-radius:11px; background:var(--card); }
+    .group-title { display:flex; align-items:center; gap:8px; padding:10px 11px; background:var(--soft); font-weight:900; font-size:12px; }
+    .group-title b { display:grid; place-items:center; width:22px; height:22px; border-radius:50%; background:var(--ink); color:#fff; font:900 13px/.9 "Arial Narrow",Impact,sans-serif; }
+    table { width:100%; border-collapse:collapse; font-size:10px; }
+    th { padding:7px 10px 5px; color:var(--muted); font:700 8px/1 ui-monospace,SFMono-Regular,Consolas,monospace; letter-spacing:.08em; text-align:right; text-transform:uppercase; }
+    th:nth-child(2), td:nth-child(2) { text-align:left; }
+    td { padding:7px 10px; border-top:1px solid var(--line); text-align:right; font-weight:700; }
+    td:nth-child(2) { font-weight:800; letter-spacing:-.02em; }
+    tr.leading td { background:color-mix(in srgb,var(--accent) 9%,var(--card)); }
+    .rank { display:inline-grid; place-items:center; width:15px; height:15px; border-radius:50%; font-size:8px; color:var(--muted); background:var(--paper); }
+    .leading .rank { background:var(--accent); color:#fff; }
+    .matches { display:grid; gap:0; overflow:hidden; border:1px solid var(--line); border-radius:11px; background:var(--card); }
+    .match { display:grid; grid-template-columns:1fr auto; gap:8px; padding:9px 10px; border-top:1px solid var(--line); }
+    .match:first-child { border:0; }
+    .match b { font-size:10px; letter-spacing:-.015em; }
+    .match span { color:var(--muted); font-size:9px; }
+    .match time { color:var(--accent); font:800 9px/1 ui-monospace,SFMono-Regular,Consolas,monospace; }
+    .note { margin:13px 1px 2px; color:var(--muted); font-size:9px; line-height:1.35; }
+    .foot { max-width:1180px; margin:0 auto; padding:0 24px 52px; color:#a8b1bb; font-size:13px; }
+    @media (max-width:680px) { .directions { grid-template-columns:repeat(5,86vw); padding-left:18px; padding-right:18px; } .direction { min-width:0; } .intro { padding-left:18px; padding-right:18px; } .foot { padding-left:18px; padding-right:18px; } }
+  </style>
+</head>
+<body>
+  <header class="intro">
+    <p class="eyebrow"><i></i> Kilkast / visuell sammenligning</p>
+    <h1>Fem måter å lese banen på.</h1>
+    <p class="lead">Samme innhold i alle fem: fem baner først, deretter en egen gruppe med tabell og kommende kamper. Alt er bevisst lyst, kontrastrikt og lesbart i dagslys.</p>
+  </header>
+  <div class="rule"></div>
+  <main class="directions">
+    <article class="direction">
+      <header class="direction-top"><div class="name">01 / anbefalt</div><h2>Banekritt</h2><div class="palette"><span></span><span></span><span></span><span></span></div></header>
+      <div class="phone">
+        <div class="appbar"><span class="brand">Kilkast</span><span class="small-live">4 live</span></div>
+        <div class="tabs"><div class="tab on">Baner</div><div class="tab">Gruppe A</div></div>
+        <div class="section-head"><h3>På banene nå</h3><span>12:08</span></div>
+        <div class="court live"><div class="court-num">1</div><div class="court-main"><div class="court-meta"><span>Spilles nå</span><span>Gruppe A</span></div><div class="teams"><b>Fjordfreserne</b><em>mot</em><b>Tømmer &amp; Torden</b></div></div><time class="time">18:24</time></div>
+        <div class="court no2"><div class="court-num">2</div><div class="court-main"><div class="court-meta"><span>Neste kamp</span><span>Gruppe B</span></div><div class="teams"><b>Stolpejegerne</b><em>mot</em><b>Siste Stokk</b></div></div></div>
+        <div class="section-head"><h3>Gruppe A</h3><span>Tabell</span></div>
+        <div class="group-card"><div class="group-title"><b>A</b> Gruppespill <span style="margin-left:auto;color:var(--muted);font-size:9px">3 av 6 spilt</span></div><table><thead><tr><th>#</th><th>Lag</th><th>K</th><th>P</th></tr></thead><tbody><tr class="leading"><td><span class="rank">1</span></td><td>Fjordfreserne</td><td>2</td><td>6</td></tr><tr class="leading"><td><span class="rank">2</span></td><td>Bjørkebanden</td><td>2</td><td>3</td></tr><tr><td><span class="rank">3</span></td><td>Tømmer &amp; Torden</td><td>2</td><td>3</td></tr><tr><td><span class="rank">4</span></td><td>Kastekameratene</td><td>2</td><td>0</td></tr></tbody></table></div>
+        <div class="section-head"><h3>Kommende i A</h3><span>Kamper</span></div>
+        <div class="matches"><div class="match"><b>Bjørkebanden – Tømmer &amp; Torden</b><time>Bane 3 · 12:10</time></div><div class="match"><b>Fjordfreserne – Kastekameratene</b><time>Bane 1 · 12:50</time></div></div>
+        <p class="note">Krittstreken går igjen i delere og banenumre. Oransje betyr alltid at noe skjer nå.</p>
+      </div>
+    </article>
+    <article class="direction summer">
+      <header class="direction-top"><div class="name">02 / sommerliga</div><h2>Sommerliga</h2><div class="palette"><span></span><span></span><span></span><span></span></div></header>
+      <div class="phone">
+        <div class="appbar"><span class="brand">Kilkast</span><span class="small-live">4 live</span></div><div class="tabs"><div class="tab on">Baner</div><div class="tab">Gruppe A</div></div><div class="section-head"><h3>På banene nå</h3><span>12:08</span></div>
+        <div class="court live"><div class="court-num">1</div><div class="court-main"><div class="court-meta"><span>Spilles nå</span><span>Gruppe A</span></div><div class="teams"><b>Fjordfreserne</b><em>mot</em><b>Tømmer &amp; Torden</b></div></div><time class="time">18:24</time></div><div class="court no2"><div class="court-num">2</div><div class="court-main"><div class="court-meta"><span>Neste kamp</span><span>Gruppe B</span></div><div class="teams"><b>Stolpejegerne</b><em>mot</em><b>Siste Stokk</b></div></div></div>
+        <div class="section-head"><h3>Gruppe A</h3><span>Tabell</span></div><div class="group-card"><div class="group-title"><b>A</b> Gruppespill <span style="margin-left:auto;color:var(--muted);font-size:9px">3 av 6 spilt</span></div><table><thead><tr><th>#</th><th>Lag</th><th>K</th><th>P</th></tr></thead><tbody><tr class="leading"><td><span class="rank">1</span></td><td>Fjordfreserne</td><td>2</td><td>6</td></tr><tr class="leading"><td><span class="rank">2</span></td><td>Bjørkebanden</td><td>2</td><td>3</td></tr><tr><td><span class="rank">3</span></td><td>Tømmer &amp; Torden</td><td>2</td><td>3</td></tr><tr><td><span class="rank">4</span></td><td>Kastekameratene</td><td>2</td><td>0</td></tr></tbody></table></div><div class="section-head"><h3>Kommende i A</h3><span>Kamper</span></div><div class="matches"><div class="match"><b>Bjørkebanden – Tømmer &amp; Torden</b><time>Bane 3 · 12:10</time></div><div class="match"><b>Fjordfreserne – Kastekameratene</b><time>Bane 1 · 12:50</time></div></div><p class="note">Blå organiserer, gul peker på neste og rødt gjør live-status umulig å overse.</p>
+      </div>
+    </article>
+    <article class="direction forest">
+      <header class="direction-top"><div class="name">03 / nordisk</div><h2>Skog &amp; kubb</h2><div class="palette"><span></span><span></span><span></span><span></span></div></header>
+      <div class="phone">
+        <div class="appbar"><span class="brand">Kilkast</span><span class="small-live">4 live</span></div><div class="tabs"><div class="tab on">Baner</div><div class="tab">Gruppe A</div></div><div class="section-head"><h3>På banene nå</h3><span>12:08</span></div>
+        <div class="court live"><div class="court-num">1</div><div class="court-main"><div class="court-meta"><span>Spilles nå</span><span>Gruppe A</span></div><div class="teams"><b>Fjordfreserne</b><em>mot</em><b>Tømmer &amp; Torden</b></div></div><time class="time">18:24</time></div><div class="court no2"><div class="court-num">2</div><div class="court-main"><div class="court-meta"><span>Neste kamp</span><span>Gruppe B</span></div><div class="teams"><b>Stolpejegerne</b><em>mot</em><b>Siste Stokk</b></div></div></div>
+        <div class="section-head"><h3>Gruppe A</h3><span>Tabell</span></div><div class="group-card"><div class="group-title"><b>A</b> Gruppespill <span style="margin-left:auto;color:var(--muted);font-size:9px">3 av 6 spilt</span></div><table><thead><tr><th>#</th><th>Lag</th><th>K</th><th>P</th></tr></thead><tbody><tr class="leading"><td><span class="rank">1</span></td><td>Fjordfreserne</td><td>2</td><td>6</td></tr><tr class="leading"><td><span class="rank">2</span></td><td>Bjørkebanden</td><td>2</td><td>3</td></tr><tr><td><span class="rank">3</span></td><td>Tømmer &amp; Torden</td><td>2</td><td>3</td></tr><tr><td><span class="rank">4</span></td><td>Kastekameratene</td><td>2</td><td>0</td></tr></tbody></table></div><div class="section-head"><h3>Kommende i A</h3><span>Kamper</span></div><div class="matches"><div class="match"><b>Bjørkebanden – Tømmer &amp; Torden</b><time>Bane 3 · 12:10</time></div><div class="match"><b>Fjordfreserne – Kastekameratene</b><time>Bane 1 · 12:50</time></div></div><p class="note">Gran og løv brukes som struktur, mens oransje er det eneste signalet som krever oppmerksomhet.</p>
+      </div>
+    </article>
+    <article class="direction festival">
+      <header class="direction-top"><div class="name">04 / folkefest</div><h2>Folkefest</h2><div class="palette"><span></span><span></span><span></span><span></span></div></header>
+      <div class="phone">
+        <div class="appbar"><span class="brand">Kilkast</span><span class="small-live">4 live</span></div><div class="tabs"><div class="tab on">Baner</div><div class="tab">Gruppe A</div></div><div class="section-head"><h3>På banene nå</h3><span>12:08</span></div>
+        <div class="court live"><div class="court-num">1</div><div class="court-main"><div class="court-meta"><span>Spilles nå</span><span>Gruppe A</span></div><div class="teams"><b>Fjordfreserne</b><em>mot</em><b>Tømmer &amp; Torden</b></div></div><time class="time">18:24</time></div><div class="court no2"><div class="court-num">2</div><div class="court-main"><div class="court-meta"><span>Neste kamp</span><span>Gruppe B</span></div><div class="teams"><b>Stolpejegerne</b><em>mot</em><b>Siste Stokk</b></div></div></div>
+        <div class="section-head"><h3>Gruppe A</h3><span>Tabell</span></div><div class="group-card"><div class="group-title"><b>A</b> Gruppespill <span style="margin-left:auto;color:var(--muted);font-size:9px">3 av 6 spilt</span></div><table><thead><tr><th>#</th><th>Lag</th><th>K</th><th>P</th></tr></thead><tbody><tr class="leading"><td><span class="rank">1</span></td><td>Fjordfreserne</td><td>2</td><td>6</td></tr><tr class="leading"><td><span class="rank">2</span></td><td>Bjørkebanden</td><td>2</td><td>3</td></tr><tr><td><span class="rank">3</span></td><td>Tømmer &amp; Torden</td><td>2</td><td>3</td></tr><tr><td><span class="rank">4</span></td><td>Kastekameratene</td><td>2</td><td>0</td></tr></tbody></table></div><div class="section-head"><h3>Kommende i A</h3><span>Kamper</span></div><div class="matches"><div class="match"><b>Bjørkebanden – Tømmer &amp; Torden</b><time>Bane 3 · 12:10</time></div><div class="match"><b>Fjordfreserne – Kastekameratene</b><time>Bane 1 · 12:50</time></div></div><p class="note">Blå er gjennomgående navigasjon. Rødt betyr live; gul er kun for oppmerksomhet.</p>
+      </div>
+    </article>
+    <article class="direction protocol">
+      <header class="direction-top"><div class="name">05 / arrangørbord</div><h2>Dommer&shy;protokoll</h2><div class="palette"><span></span><span></span><span></span><span></span></div></header>
+      <div class="phone">
+        <div class="appbar"><span class="brand">Kilkast</span><span class="small-live">4 live</span></div><div class="tabs"><div class="tab on">Baner</div><div class="tab">Gruppe A</div></div><div class="section-head"><h3>På banene nå</h3><span>12:08</span></div>
+        <div class="court live"><div class="court-num">1</div><div class="court-main"><div class="court-meta"><span>Spilles nå</span><span>Gruppe A</span></div><div class="teams"><b>Fjordfreserne</b><em>mot</em><b>Tømmer &amp; Torden</b></div></div><time class="time">18:24</time></div><div class="court no2"><div class="court-num">2</div><div class="court-main"><div class="court-meta"><span>Neste kamp</span><span>Gruppe B</span></div><div class="teams"><b>Stolpejegerne</b><em>mot</em><b>Siste Stokk</b></div></div></div>
+        <div class="section-head"><h3>Gruppe A</h3><span>Tabell</span></div><div class="group-card"><div class="group-title"><b>A</b> Gruppespill <span style="margin-left:auto;color:var(--muted);font-size:9px">3 av 6 spilt</span></div><table><thead><tr><th>#</th><th>Lag</th><th>K</th><th>P</th></tr></thead><tbody><tr class="leading"><td><span class="rank">1</span></td><td>Fjordfreserne</td><td>2</td><td>6</td></tr><tr class="leading"><td><span class="rank">2</span></td><td>Bjørkebanden</td><td>2</td><td>3</td></tr><tr><td><span class="rank">3</span></td><td>Tømmer &amp; Torden</td><td>2</td><td>3</td></tr><tr><td><span class="rank">4</span></td><td>Kastekameratene</td><td>2</td><td>0</td></tr></tbody></table></div><div class="section-head"><h3>Kommende i A</h3><span>Kamper</span></div><div class="matches"><div class="match"><b>Bjørkebanden – Tømmer &amp; Torden</b><time>Bane 3 · 12:10</time></div><div class="match"><b>Fjordfreserne – Kastekameratene</b><time>Bane 1 · 12:50</time></div></div><p class="note">Minst dekor. Tunge linjer, store tall og en visning som tåler at arrangøren er stresset.</p>
+      </div>
+    </article>
+  </main>
+  <p class="foot">Bla sidelengs på mobil for å sammenligne retningene. Felles struktur: <strong>Baner</strong> gir øyeblikksoversikt; hver <strong>gruppe</strong> har egen tabell og egne kampkort.</p>
+</body>
+</html>
