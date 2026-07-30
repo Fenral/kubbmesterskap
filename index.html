@@ -253,6 +253,7 @@ main{max-width:960px;margin:0 auto;padding:var(--s4) var(--s4) var(--s7)}
 .live-pip{flex:0 0 auto;width:7px;height:7px;border-radius:50%;background:var(--go);animation:beat 2s ease-in-out infinite}
 @keyframes beat{50%{opacity:.3}}
 .mine-tag{flex:0 0 auto;font-size:11px;font-weight:620;padding:3px 7px;border-radius:6px;background:var(--ink);color:var(--on-ink)}
+.new-tag{flex:0 0 auto;font-size:11px;font-weight:720;padding:3px 7px;border-radius:6px;background:var(--go-w);color:var(--go)}
 
 .court-body{display:flex;align-items:center;gap:var(--s4);padding:var(--s4)}
 .sides{flex:1;min-width:0;display:grid;gap:3px}
@@ -995,6 +996,7 @@ function courtCard(c, m){
       <span class="court-no">${c}</span>
       <span class="cap">${esc(m.label || 'Kamp')}</span>
       ${mine ? `<span class="mine-tag">Ditt lag</span>` : ''}
+      ${m.status === 'ready' ? `<span class="new-tag">Ny kamp</span>` : ''}
       ${m.status === 'live' ? `<span class="live-pip" aria-hidden="true"></span>` : ''}
     </div>
     <div class="court-body">
@@ -1004,7 +1006,7 @@ function courtCard(c, m){
       </div>
       <div class="timer" data-timer="${m.id}" data-tone="idle">
         <div class="t num">${clock(S.t.match_seconds)}</div>
-        <div class="lab">Klar</div>
+        <div class="lab">Ny kamp klar</div>
       </div>
     </div>
     <div class="track"><i data-track="${m.id}"></i></div>
@@ -1020,7 +1022,7 @@ function beat(){
     if(!m) return;
     const total = S.t.match_seconds;
     let txt, lab, frac, tn;
-    if(m.status === 'ready'){ txt = clock(total); lab = 'Klar til start'; frac = 1; tn = 'idle'; }
+    if(m.status === 'ready'){ txt = clock(total); lab = 'Ny kamp klar'; frac = 1; tn = 'idle'; }
     else {
       const r = left(m);
       txt = clock(r); frac = Math.max(0, Math.min(1, r / total)); tn = tone(m);

@@ -80,7 +80,9 @@ begin
     raise exception 'Hvert lag må ha et eget navn';
   end if;
 
-  delete from public.kubb_matches;
+  -- The hosted project has safe updates enabled, so make the intended
+  -- full reset explicit instead of issuing an unqualified DELETE.
+  delete from public.kubb_matches where id is not null;
   delete from public.kubb_teams;
   delete from public.kubb_codes where role = 'team';
 
