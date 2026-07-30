@@ -1,0 +1,11 @@
+{
+  "name": "kubbmesterskap",
+  "version": "1.0.0",
+  "description": "Turneringsverktøy for kubb – gruppespill, baner, nedtelling og sluttspill",
+  "private": true,
+  "license": "MIT",
+  "devDependencies": {
+    "@playwright/test": "^1.47.2",
+    "playwright": "^1.62.0"
+  }
+}
