@@ -283,6 +283,8 @@ main{max-width:960px;margin:0 auto;padding:var(--s4) var(--s4) var(--s7)}
   transform-origin:left center;transform:scaleX(1);
   transition:transform .95s linear, background-color .5s var(--e-out);
 }
+.court-next{padding:9px var(--s4);border-top:1px solid var(--line);font-size:12.5px;color:var(--ink-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.court-next b{color:var(--ink);font-weight:620}
 .timer[data-tone="go"]  ~ .x, .court[data-tone="go"]   .track>i{background:var(--go)}
 .court[data-tone="warn"] .track>i{background:var(--warn)}
 .court[data-tone="over"] .track>i{background:var(--over)}
@@ -677,6 +679,7 @@ function signOut(){ store.del('kubb.code'); location.reload(); }
    DATA
    ================================================================ */
 async function pullAll(){
+  const previousMatches = S.matches;
   const [c, t, tm, mt, st] = await Promise.all([
     sb.rpc('kubb_now'),
     sb.from('kubb_tournament').select('*').eq('id',1).maybeSingle(),
@@ -689,6 +692,7 @@ async function pullAll(){
   S.teams = tm.data || [];
   S.matches = mt.data || [];
   S.standings = st.data || [];
+  announceNewCourtAssignments(previousMatches);
   S.ready = true;
 }
 let pending = null;
@@ -722,6 +726,65 @@ async function boot(){
   finishExpiredMatches();
   setInterval(async () => { const { data } = await sb.rpc('kubb_now'); if(data) S.offset = Date.parse(data) - Date.now(); }, 60000);
   setInterval(async () => { await pullAll(); paint(); }, 25000);
+}
+
+/* ---------- varsler ---------- */
+const notificationsEnabled = () => 'Notification' in window && Notification.permission === 'granted' && store.get('kubb.notifications') === 'on';
+function sendNotification(title, body){
+  if(!notificationsEnabled()) return;
+  try { new Notification(title, { body, tag:`kubb-${title}-${body}`, renotify:false }); } catch(_){}
+}
+async function enableNotifications(){
+  if(!('Notification' in window)){ toast('Denne nettleseren støtter ikke varsler', true); return; }
+  if(Notification.permission === 'denied'){ toast('Varsler er slått av i nettleserens innstillinger', true); return; }
+  const permission = await Notification.requestPermission();
+  if(permission === 'granted'){
+    store.set('kubb.notifications', 'on');
+    toast('Varsler er på — du får beskjed når laget ditt får bane');
+  } else toast('Varsler ble ikke slått på', true);
+  paint();
+}
+function announceNewCourtAssignments(previous){
+  if(!notificationsEnabled() || !previous.length) return;
+  const before = new Map(previous.map(m => [m.id, m]));
+  S.matches.filter(m => m.status === 'ready' && m.court).forEach(m => {
+    const old = before.get(m.id);
+    if(old && old.status === 'ready' && old.court === m.court) return;
+    const a = tName(m.team_a) || '?', b = tName(m.team_b) || '?';
+    if(S.role === 'team' && (m.team_a === S.teamId || m.team_b === S.teamId))
+      sendNotification('Din kamp er klar', `${a} – ${b} på bane ${m.court}`);
+    else if(isAdmin())
+      sendNotification(`Bane ${m.court} er klar`, `${a} – ${b}`);
+  });
+}
+function notificationButton(){
+  if(S.tv || S.role === 'guest' || !('Notification' in window)) return '';
+  const enabled = notificationsEnabled();
+  return `<button class="btn ${enabled ? 'quiet' : 'ghost'} sm" data-do="notify">${enabled ? 'Varsler er på' : 'Varsle meg om min bane'}</button>`;
+}
+
+let wakeLock = null;
+const keepAwake = () => store.get('kubb.keep-awake') === 'on';
+async function toggleWakeLock(){
+  if(!navigator.wakeLock){ toast('Denne nettleseren støtter ikke skjermlås', true); return; }
+  if(wakeLock){
+    await wakeLock.release(); wakeLock = null; store.del('kubb.keep-awake'); toast('Skjermen kan slås av som normalt'); paint(); return;
+  }
+  try {
+    wakeLock = await navigator.wakeLock.request('screen');
+    wakeLock.addEventListener('release', () => { wakeLock = null; paint(); });
+    store.set('kubb.keep-awake', 'on'); toast('Skjermen holdes våken'); paint();
+  } catch(_){ toast('Kunne ikke holde skjermen våken', true); }
+}
+async function restoreWakeLock(){
+  if(keepAwake() && !wakeLock && document.visibilityState === 'visible'){
+    try { wakeLock = await navigator.wakeLock.request('screen'); wakeLock.addEventListener('release', () => { wakeLock = null; paint(); }); } catch(_){}
+  }
+}
+document.addEventListener('visibilitychange', restoreWakeLock);
+function wakeLockButton(){
+  if(S.tv || !('wakeLock' in navigator)) return '';
+  return `<button class="btn ${keepAwake() ? 'quiet' : 'ghost'} sm" data-do="awake">${keepAwake() ? 'Skjerm holdes våken' : 'Hold skjermen våken'}</button>`;
 }
 
 let finishingExpired = false;
@@ -792,6 +855,8 @@ function wire(){
       reopen:  () => rpc('kubb_reopen_match', { p_match:id }, 'Kampen er åpnet igjen'),
       advance: () => rpc('kubb_admin_advance_tournament', {}, 'Turneringen er flyttet videre'),
       choose:  () => sheetChooseCourt(Number(n.dataset.court)),
+      notify:  () => enableNotifications(),
+      awake:   () => toggleWakeLock(),
       filter:  () => { S.filter = id; paint(); },
       tv:      () => bigScreen(true),
       keys:    () => sheetKeys(),
@@ -810,6 +875,22 @@ function wire(){
 
 /* ---------- baner ---------- */
 const onCourt = c => S.matches.find(m => m.court === c && ['ready','live','paused'].includes(m.status));
+function nextForCourt(c, current){
+  const busy = new Set();
+  S.matches.filter(m => ['ready','live','paused'].includes(m.status) && m.id !== current?.id).forEach(m => {
+    if(m.team_a) busy.add(m.team_a);
+    if(m.team_b) busy.add(m.team_b);
+  });
+  return S.matches
+    .filter(m => m.status === 'queued' && m.team_a && m.team_b && !busy.has(m.team_a) && !busy.has(m.team_b))
+    .sort((a,b) => (a.order_no || 0) - (b.order_no || 0))[0] || null;
+}
+function nextHint(c, current){
+  const m = nextForCourt(c, current);
+  if(!m) return '';
+  const mine = m.team_a === S.teamId || m.team_b === S.teamId;
+  return `<div class="court-next">Neste: <b>${esc(tName(m.team_a) || '?')} – ${esc(tName(m.team_b) || '?')}</b>${mine ? ' · ditt lag' : ''}</div>`;
+}
 
 function viewCourts(){
   const n = S.t.num_courts || 6;
@@ -820,6 +901,7 @@ function viewCourts(){
       isAdmin() ? `<button class="btn primary" data-do="teams">Legg inn lag</button>` : '');
   }
   let h = '';
+  h += notificationButton() + wakeLockButton();
   if(S.tv){
     const live = S.matches.filter(m => m.status === 'live').length;
     const rest = S.matches.filter(m => m.status !== 'finished').length;
@@ -890,6 +972,7 @@ function courtCard(c, m){
       </div>
     </div>
     <div class="track"><i data-track="${m.id}"></i></div>
+    ${nextHint(c, m)}
     ${actions ? `<div class="court-actions">${actions}</div>` : ''}
   </article>`;
 }

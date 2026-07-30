@@ -7,7 +7,7 @@ Turneringsverktøy for kubb. Én HTML-fil som kjører hele arrangementet: påmel
 1. Alle lag spiller først ordinære puljer. Seier gir 3 poeng, uavgjort 1 poeng og tap 0 poeng.
 2. De to beste fra hver første pulje går til A-gruppespillet, og de to nederste går til B-gruppespillet.
 3. Når A- og B-gruppespillene er ferdige, bygges egne utslagstrær for hvert nivå. Vinnere går videre automatisk.
-4. Banekartet viser live-kamper med nedtelling. Når 40 minutter går ut, blir en gruppespillkamp automatisk uavgjort, tabellen oppdateres og neste kamp tildeles banen. Arrangøren kan velge en annen startklar kamp når en kamp på banen ikke kan starte.
+4. Banekartet viser live-kamper med nedtelling og en konkret kandidat til neste kamp på hver bane. Når 40 minutter går ut, blir en gruppespillkamp automatisk uavgjort, tabellen oppdateres og neste kamp tildeles banen. Arrangøren kan velge en annen startklar kamp når en kamp på banen ikke kan starte. Lag kan frivillig slå på nettleservarsler når egen kamp får bane, og arrangørskjermer kan holdes våkne gjennom dagen.
 
 Appen er laget for å brukes på mobil ute på banen. Arrangøren styrer alt fra ett ark, lagene logger inn med sin egen kode og ser bare det de trenger, og en storskjermvisning kan kastes opp på en projektor.
 
