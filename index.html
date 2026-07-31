@@ -534,6 +534,12 @@ tr.stand-click:hover td,tr.stand-click:focus-visible td{background:var(--surface
 .key small{display:block;font-size:11px;color:var(--ink-3);font-weight:560}
 .key b{display:block;font-size:13.5px;font-weight:560;margin:1px 0 4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;letter-spacing:-.012em}
 .key i{font-style:normal;font-family:var(--mono);font-size:21px;font-weight:640;letter-spacing:.1em}
+.key-foot{display:flex;align-items:end;justify-content:space-between;gap:8px}.key-foot .btn{padding:6px 8px;min-height:30px;font-size:11.5px}
+.status-list{display:grid;gap:8px}.status-row{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:11px;padding:12px;background:var(--surface);border:1px solid var(--line);border-radius:var(--r1)}
+.status-dot{width:10px;height:10px;border-radius:50%;background:var(--line-2);box-shadow:0 0 0 4px var(--surface-2)}
+.status-dot[data-state="live"],.status-dot[data-state="ready"]{background:var(--go);box-shadow:0 0 0 4px var(--go-w)}.status-dot[data-state="paused"]{background:var(--warn);box-shadow:0 0 0 4px var(--warn-w)}
+.status-row b{display:block;font-size:14px;font-weight:590}.status-row small{display:block;margin-top:2px;color:var(--ink-3);font-size:11.5px}.status-row>span:last-child{text-align:right;font-size:12px;font-weight:570;color:var(--ink-2)}
+.impact{margin:0 0 var(--s4);padding:12px;border:1px solid var(--warn);border-radius:var(--r1);background:var(--warn-w)}.impact b{display:block;font-size:13.5px}.impact p{margin:4px 0 0;font-size:12px;line-height:1.45;color:var(--ink-2)}
 
 /* nedtelling */
 .countdown{
@@ -705,7 +711,8 @@ function elapsed(m){
   if(m.status === 'paused' && m.paused_at) e -= (svrNow() - Date.parse(m.paused_at)) / 1000;
   return Math.max(0, e);
 }
-const left = m => S.t.match_seconds - elapsed(m);
+const matchTotal = m => S.t.match_seconds + (m.extra_seconds || 0);
+const left = m => matchTotal(m) - elapsed(m);
 const choose2 = n => n > 1 ? n * (n - 1) / 2 : 0;
 function plannedMatchTotal(){
   const n = S.teams.length;
@@ -1039,9 +1046,11 @@ function wire(){
       start:   () => isAdmin() && countdown(id),
       pause:   () => isAdmin() && rpc('kubb_pause_match',  { p_match:id }),
       resume:  () => isAdmin() && rpc('kubb_resume_match', { p_match:id }),
+      extra:   () => isAdmin() && rpc('kubb_admin_add_match_time', { p_match:id, p_minutes:5 }, 'Fem minutter er lagt til'),
       finish:  () => isAdmin() && sheetResult(id),
       edit:    () => sheetResult(id, true),
       reopen:  () => isAdmin() && confirmReopen(id),
+      manageReady: () => isAdmin() && sheetManageReadyMatch(id),
       phase:   () => isAdmin() && confirmPhase(n.dataset.action),
       undo:    () => isAdmin() && confirmUndo(),
       choose:  () => isAdmin() && sheetChooseCourt(Number(n.dataset.court)),
@@ -1052,6 +1061,7 @@ function wire(){
       teamMatches: () => sheetTeamMatches(id),
       tv:      () => bigScreen(!S.tv),
       keys:    () => sheetKeys(),
+      teamStatus: () => sheetTeamStatus(),
       teams:   () => sheetTeams(),
       setup:   () => sheetSetup(),
       begin:   () => ask('Trekk grupper?',
@@ -1121,12 +1131,14 @@ function courtCard(c, m, next){
   if(!S.tv && isAdmin()){
     if(m.status === 'ready')
       actions = `<button class="btn primary" data-do="start" data-id="${m.id}">${svg(ICON.play,'width:15px;height:15px;fill:currentColor;stroke:none')}Start kampen</button>` +
-        (isAdmin() ? `<button class="btn quiet" data-do="choose" data-court="${c}">Annen kamp</button>` : '');
+        `<button class="btn quiet" data-do="manageReady" data-id="${m.id}">Flytt / endre</button>`;
     else if(m.status === 'live')
       actions = `<button class="btn quiet" data-do="pause" data-id="${m.id}">Pause</button>
+                 <button class="btn quiet" data-do="extra" data-id="${m.id}">+5 min</button>
                  <button class="btn primary" data-do="finish" data-id="${m.id}">Avslutt</button>`;
     else
       actions = `<button class="btn quiet" data-do="resume" data-id="${m.id}">Fortsett</button>
+                 <button class="btn quiet" data-do="extra" data-id="${m.id}">+5 min</button>
                  <button class="btn primary" data-do="finish" data-id="${m.id}">Avslutt</button>`;
   }
   return `<article class="court${fresh && !S.tv ? ' enter' : ''}" id="c-${m.id}" data-state="${running ? 'live' : 'ready'}" data-tone="idle">
@@ -1143,7 +1155,7 @@ function courtCard(c, m, next){
         <div class="side"><b>${esc(b)}</b></div>
       </div>
       <div class="timer" data-timer="${m.id}" data-tone="idle">
-        <div class="t num">${clock(S.t.match_seconds)}</div>
+        <div class="t num">${clock(matchTotal(m))}</div>
         <div class="lab">Ny kamp klar</div>
       </div>
     </div>
@@ -1175,7 +1187,7 @@ function overviewCourtCard(c, m){
     <div class="court-top"><span class="court-no">${c}</span><span class="cap">Bane ${c}</span></div>
     <div class="court-body">
       <div class="sides"><div class="side"><b>${esc(a)}</b></div><div class="side"><b>${esc(b)}</b></div></div>
-      <div class="timer" data-timer="${m.id}" data-tone="idle"><div class="t num">${clock(S.t.match_seconds)}</div></div>
+      <div class="timer" data-timer="${m.id}" data-tone="idle"><div class="t num">${clock(matchTotal(m))}</div></div>
     </div>
   </article>`;
 }
@@ -1185,7 +1197,7 @@ function beat(){
   document.querySelectorAll('[data-timer]').forEach(node => {
     const m = S.matches.find(x => x.id === node.dataset.timer);
     if(!m) return;
-    const total = S.t.match_seconds;
+    const total = matchTotal(m);
     let txt, lab, frac, tn;
     if(m.status === 'ready'){ txt = clock(total); lab = 'Ny kamp klar'; frac = 1; tn = 'idle'; }
     else {
@@ -1488,22 +1500,24 @@ function viewAdmin(){
     <div class="progress-card"><div class="progress-copy"><b>Turneringsfremdrift</b><span>${progress.pct}%</span></div><div class="progress-track"><i style="transform:scaleX(${progress.pct / 100})"></i></div></div>
     <div class="eyebrow">Turneringskontroll</div>
     ${phaseControl()}
-    <div class="eyebrow">Før start</div>
-    <div class="rows">
-      ${row('teams', ICON.people, 'Lag og puljer', teamSummary)}
-      ${row('setup', ICON.cog, 'Innstillinger', `${Math.round(S.t.match_seconds/60)} min · ${S.t.num_courts} baner · de to beste til A`)}
-      ${row('keys', ICON.key, 'Koder til lagene', S.teams.length ? 'Del ut én kode per lag' : 'Kommer når lagene er lagt inn')}
-      ${isBeforeStart ? row('begin', ICON.play, 'Trekk grupper', S.teams.length >= 12 ? 'Fordeler lagene tilfeldig og viser begge sluttspilltrærne' : 'Fyll inn minst 12 lag først') : ''}
-    </div>
+    ${isBeforeStart ? `<div class="eyebrow">Før start</div>
+      <div class="rows">
+        ${row('teams', ICON.people, 'Lag og puljer', teamSummary)}
+        ${row('setup', ICON.cog, 'Innstillinger', `${Math.round(S.t.match_seconds/60)} min · ${S.t.num_courts} baner · de to beste til A`)}
+        ${row('keys', ICON.key, 'Koder til lagene', S.teams.length ? 'Del ut én kode per lag' : 'Kommer når lagene er lagt inn')}
+        ${row('begin', ICON.play, 'Trekk grupper', S.teams.length >= 12 ? 'Fordeler lagene tilfeldig og viser begge sluttspilltrærne' : 'Fyll inn minst 12 lag først')}
+      </div>` : `<div class="eyebrow">Tilgang og trekning</div>
+      <p class="phase-note">Trekket er offentlig og låst${S.t.drawn_at ? ` siden ${esc(new Date(S.t.drawn_at).toLocaleTimeString('nb-NO', {hour:'2-digit', minute:'2-digit'}))}` : ''}. Lagliste og fellesinnstillinger kan bare endres etter full nullstilling.</p>
+      <div class="rows">${row('keys', ICON.key, 'Koder til lagene', 'Se, kopier eller lag en ny enkeltkode')}</div>`}
     <div class="eyebrow">Under turneringen</div>
     <div class="rows">
       ${row('tv', ICON.tv, 'Kun oversikt', 'Bare bane, lag og klokke i fullskjerm')}
+      ${row('teamStatus', ICON.people, 'Lagstatus og ventetid', 'Se hvem som spiller, er kalt inn eller venter')}
       ${latest?.can_undo ? row('undo', ICON.chev, 'Angre siste handling', latest.label) : ''}
     </div>
     ${S.audit.length ? `<div class="eyebrow">Siste endringer</div><div class="activity">${S.audit.slice(0,6).map(a => `<div class="activity-row"><b>${esc(a.label)}</b><time>${esc(shortTime(a.created_at))}</time><small>${esc(a.actor_name)}</small></div>`).join('')}</div>` : ''}
     <div class="eyebrow">Farlig</div>
     <div class="rows">
-      ${!isBeforeStart ? row('begin', ICON.play, 'Trekk grupper på nytt', 'Starter første gruppespill på nytt med et nytt, synlig trekk', 'warn') : ''}
       ${row('wipe', ICON.trash, 'Nullstill alt', 'Sletter lag, koder og resultater', 'warn')}
     </div>
     <div style="margin-top:20px"><button class="btn ghost block" data-do="out">Logg ut</button></div>`;
@@ -1577,7 +1591,40 @@ function confirmUndo(){
   if(!latest?.can_undo){ toast('Siste handling kan ikke angres', true); return; }
   ask('Angre siste handling?', latest.label, 'Angre', () => rpc('kubb_admin_undo_last', {}, 'Handlingen er angret'));
 }
+function downstreamMatches(id){
+  const found = [], seen = new Set([id]), queue = [id];
+  while(queue.length){
+    const source = S.matches.find(m => m.id === queue.shift());
+    if(!source) continue;
+    [source.feeds_match, source.loser_feeds_match].filter(Boolean).forEach(next => {
+      if(seen.has(next)) return;
+      seen.add(next);
+      const match = S.matches.find(m => m.id === next);
+      if(match){ found.push(match); queue.push(next); }
+    });
+  }
+  return found.sort((a,b) => (a.order_no || 0) - (b.order_no || 0));
+}
+function matchStateLabel(m){
+  return m.status === 'live' ? `spilles på bane ${m.court}`
+       : m.status === 'paused' ? `pauset på bane ${m.court}`
+       : m.status === 'ready' ? `kalt inn til bane ${m.court}`
+       : m.status === 'finished' ? 'ferdigspilt'
+       : 'i kø';
+}
+function confirmResetDownstream(id){
+  const affected = downstreamMatches(id).filter(m => m.team_a || m.team_b || m.status !== 'queued');
+  if(!affected.length){ toast('Ingen senere kamper må nullstilles'); return; }
+  const active = affected.filter(m => ['ready','live','paused','finished'].includes(m.status));
+  const detail = active.length
+    ? `${active.length} av kampene er kalt inn, pågår eller er ferdigspilt. De legges tilbake i køen og berørte plasser i treet tømmes.`
+    : 'Berørte plasser i de senere kampene tømmes og fylles på nytt når resultatet rettes.';
+  ask(`Nullstill ${affected.length} senere ${affected.length === 1 ? 'kamp' : 'kamper'}?`, detail, 'Nullstill senere kamper',
+    () => rpc('kubb_admin_reset_downstream', { p_match:id }, 'Senere knockoutkamper er nullstilt'), true);
+}
 function confirmReopen(id){
+  const blocked = downstreamMatches(id).some(m => ['ready','live','paused','finished'].includes(m.status));
+  if(blocked){ confirmResetDownstream(id); return; }
   ask('Gjenåpne kampen?', 'Resultatet fjernes og kampen legges tilbake i køen.', 'Gjenåpne', () => rpc('kubb_reopen_match', { p_match:id }, 'Kampen er åpnet igjen'));
 }
 function confirmFullReset(){
@@ -1598,12 +1645,18 @@ function sheetResult(id, editing = false){
   const a = tName(m.team_a) || '?', b = tName(m.team_b) || '?';
   const r = left(m);
   const status = editing ? 'Endringen oppdaterer tabellen med én gang.' : m.status === 'paused' ? 'Kampen er pauset' : r <= 0 ? `Tiden gikk ut for ${clock(-r).replace('+','')} siden` : `${clock(r)} igjen av kampen`;
+  const affected = editing ? downstreamMatches(id).filter(next => next.team_a || next.team_b || next.status !== 'queued') : [];
+  const needsReset = affected.some(next => ['ready','live','paused','finished'].includes(next.status));
+  const impact = affected.length ? `<div class="impact"><b>Påvirker ${affected.length} senere ${affected.length === 1 ? 'kamp' : 'kamper'}</b>
+    <p>${affected.slice(0,3).map(next => `${esc(next.label || stageName(next.stage))} (${esc(matchStateLabel(next))})`).join(' · ')}${affected.length > 3 ? ` · og ${affected.length - 3} til` : ''}</p></div>` : '';
   const { box, close } = sheet(`
     <h2>${editing ? 'Endre resultat' : 'Hvem vant?'}</h2>
     <p class="lede">${esc(m.label || 'Kamp')} · ${esc(status)}</p>
-    <button class="choice accent" data-r="a"><span><b>${esc(a)}</b><small>3 poeng</small></span></button>
-    <button class="choice accent" data-r="b"><span><b>${esc(b)}</b><small>3 poeng</small></span></button>
-    ${isGroupStage(m.stage) ? `<button class="choice" data-r="draw"><span><b>Uavgjort</b><small>1 poeng til hvert lag</small></span></button>` : ''}
+    ${impact}
+    ${needsReset ? `<button class="btn danger block" data-x="reset-path">Nullstill senere kamper først</button>` : ''}
+    <button class="choice accent" data-r="a" ${needsReset ? 'disabled' : ''}><span><b>${esc(a)}</b><small>3 poeng</small></span></button>
+    <button class="choice accent" data-r="b" ${needsReset ? 'disabled' : ''}><span><b>${esc(b)}</b><small>3 poeng</small></span></button>
+    ${isGroupStage(m.stage) ? `<button class="choice" data-r="draw" ${needsReset ? 'disabled' : ''}><span><b>Uavgjort</b><small>1 poeng til hvert lag</small></span></button>` : ''}
     ${editing ? `<button class="btn danger block" data-x="reopen">Gjenåpne kampen</button>` : ''}
     <div style="margin-top:20px"><button class="btn ghost block" data-x="cancel">Avbryt</button></div>`);
 
@@ -1612,6 +1665,8 @@ function sheetResult(id, editing = false){
     close();
     rpc(editing ? 'kubb_admin_correct_result' : 'kubb_finish_match', { p_match:id, p_result:res }, editing ? 'Resultatet er oppdatert' : 'Resultatet er lagret');
   });
+  const resetPath = box.querySelector('[data-x="reset-path"]');
+  if(resetPath) resetPath.onclick = () => { close(); confirmResetDownstream(id); };
   if(editing) box.querySelector('[data-x="reopen"]').onclick = () => { close(); confirmReopen(id); };
   box.querySelector('[data-x="cancel"]').onclick = close;
 }
@@ -1638,6 +1693,59 @@ function sheetChooseCourt(court){
     const ok = await rpc('kubb_select_court_match', { p_court:court, p_match:btn.dataset.pick }, 'Kampen er satt på banen');
     if(ok) close();
   });
+}
+
+function sheetManageReadyMatch(id){
+  const m = S.matches.find(match => match.id === id && match.status === 'ready');
+  if(!m) return;
+  const occupied = new Set(S.matches.filter(match => match.id !== id && ['ready','live','paused'].includes(match.status)).map(match => match.court));
+  const freeCourts = Array.from({length:S.t.num_courts}, (_, i) => i + 1).filter(court => court !== m.court && !occupied.has(court));
+  const { box, close } = sheet(`
+    <h2>Flytt eller endre kampen</h2>
+    <p class="lede">${esc(tName(m.team_a) || '?')} – ${esc(tName(m.team_b) || '?')} er kalt inn til bane ${m.court}, men kampen er ikke startet.</p>
+    ${freeCourts.map(court => `<button class="choice" data-court="${court}"><span class="k">${court}</span><span><b>Flytt til bane ${court}</b><small>Banen er ledig</small></span></button>`).join('')}
+    <button class="choice" data-x="replace"><span><b>Velg en annen kamp på bane ${m.court}</b><small>Denne kampen går automatisk tilbake i køen</small></span></button>
+    <button class="btn danger block" data-x="release">Legg kampen tilbake i køen</button>
+    <div style="margin-top:20px"><button class="btn ghost block" data-x="cancel">Avbryt</button></div>`);
+  box.querySelector('[data-x="cancel"]').onclick = close;
+  box.querySelector('[data-x="replace"]').onclick = () => { close(); sheetChooseCourt(m.court); };
+  box.querySelector('[data-x="release"]').onclick = async () => {
+    const ok = await rpc('kubb_admin_release_court_match', { p_match:id }, 'Kampen er tilbake i køen');
+    if(ok) close();
+  };
+  box.querySelectorAll('[data-court]').forEach(button => button.onclick = async () => {
+    const ok = await rpc('kubb_admin_move_court_match', { p_match:id, p_court:Number(button.dataset.court) }, `Kampen er flyttet til bane ${button.dataset.court}`);
+    if(ok) close();
+  });
+}
+
+function sheetTeamStatus(){
+  const drawn = S.t.drawn_at ? Date.parse(S.t.drawn_at) : Date.parse(S.t.updated_at || new Date().toISOString());
+  const priority = { live:0, ready:1, paused:2, waiting:3, done:4 };
+  const rows = S.teams.map(team => {
+    const involved = S.matches.filter(m => m.team_a === team.id || m.team_b === team.id);
+    const active = involved.find(m => ['live','ready','paused'].includes(m.status));
+    const finished = involved.filter(m => m.status === 'finished');
+    const queued = involved.filter(m => m.status === 'queued' && m.team_a && m.team_b);
+    const last = finished.reduce((latest, m) => Math.max(latest, Date.parse(m.ended_at || 0) || 0), drawn || svrNow());
+    const waited = Math.max(0, Math.floor((svrNow() - last) / 60000));
+    let state = 'waiting', label = queued.length ? `${queued.length} ${queued.length === 1 ? 'kamp' : 'kamper'} i kø` : 'Venter på neste oppsett';
+    if(active){
+      state = active.status;
+      label = active.status === 'live' ? `Spiller på bane ${active.court}` : active.status === 'ready' ? `Møt på bane ${active.court}` : `Pauset på bane ${active.court}`;
+    } else if(S.t.phase === 'finished') { state = 'done'; label = 'Ferdig'; }
+    return { team, state, label, waited, finished:finished.length };
+  }).sort((a,b) => priority[a.state] - priority[b.state] || (b.waited - a.waited) || a.team.name.localeCompare(b.team.name, 'nb'));
+  const { box, close } = sheet(`
+    <h2>Lagstatus og ventetid</h2>
+    <p class="lede">Ventetid regnes fra lagets forrige avsluttede kamp, eller fra trekningen hvis laget ikke har spilt ennå.</p>
+    <div class="status-list">${rows.map(row => `<div class="status-row">
+      <i class="status-dot" data-state="${row.state}"></i>
+      <span><b>${esc(row.team.name)}</b><small>${row.finished} spilt · ${row.state === 'waiting' ? `ventet ${row.waited} min` : row.label}</small></span>
+      <span>${esc(row.label)}</span>
+    </div>`).join('')}</div>
+    <div style="margin-top:20px"><button class="btn block" data-x="close">Lukk</button></div>`);
+  box.querySelector('[data-x="close"]').onclick = close;
 }
 
 function sheetSetup(){
@@ -1695,7 +1803,7 @@ async function sheetKeys(){
   const { box, close } = sheet(`
     <h2>Koder</h2>
     <p class="lede">Én kode per lag. Lag med arrangørtilgang er tydelig merket.</p>
-    ${rows.length ? `<div class="keys">${rows.map(r => `<div class="key"><small>${r.role === 'admin' ? 'ARRANGØR' : `Pulje ${esc(r.grp)}`}</small><b>${esc(r.team_name)}</b><i>${esc(r.code)}</i></div>`).join('')}</div>`
+    ${rows.length ? `<div class="keys">${rows.map(r => `<div class="key"><small>${r.role === 'admin' ? 'ARRANGØR' : `Pulje ${esc(r.grp)}`}</small><b>${esc(r.team_name)}</b><div class="key-foot"><i>${esc(r.code)}</i><button class="btn quiet" data-new-code="${r.team_id}" data-team-name="${esc(r.team_name)}">Ny kode</button></div></div>`).join('')}</div>`
                   : `<p class="lede">Ingen lag lagt inn ennå.</p>`}
     ${S.teamId ? '<p class="lede" style="margin-top:18px">Hovedkoden kan bare byttes når du er logget inn som hovedarrangør.</p>' : `<label class="field"><span>Ny hovedarrangørkode</span>
       <span class="cluster" style="align-items:stretch"><input id="ac" inputmode="numeric" maxlength="4" placeholder="Fire siffer"><button class="btn" data-x="setac" style="flex:0 0 auto">Bytt</button></span>
@@ -1718,6 +1826,15 @@ async function sheetKeys(){
     if(e2){ toast(String(e2.message).replace(/^.*?:\s*/, ''), true); return; }
     S.code = v; store.set('kubb.code', v); close(); toast('Arrangørkoden er byttet');
   };
+  box.querySelectorAll('[data-new-code]').forEach(button => button.onclick = () => {
+    const teamId = button.dataset.newCode, teamName = button.dataset.teamName;
+    ask(`Lage ny kode til ${teamName}?`, 'Den gamle koden slutter å virke med én gang. Laget må få den nye koden.', 'Lag ny kode', async () => {
+      const { data:newCode, error:codeError } = await sb.rpc('kubb_admin_regenerate_team_code', { p_code:S.code, p_team:teamId });
+      if(codeError){ toast(String(codeError.message).replace(/^.*?:\s*/, ''), true); return; }
+      if(S.teamId === teamId && newCode?.code){ S.code = newCode.code; store.set('kubb.code', newCode.code); }
+      close(); await pullAll(); paint(); toast(`Ny kode til ${teamName}: ${newCode.code}`); sheetKeys();
+    });
+  });
 }
 
 /* ================================================================

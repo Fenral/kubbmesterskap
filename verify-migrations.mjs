@@ -18,7 +18,8 @@ const migrations = [
   '20260730230000_kilkast_flexible_groups_and_playoff_tree.sql',
   '20260730234759_direct_semifinals.sql',
   '20260731000930_admin_controlled_court_start.sql',
-  '20260731120000_admin_control_and_tournament_phases.sql'
+  '20260731120000_admin_control_and_tournament_phases.sql',
+  '20260731160000_remaining_admin_controls.sql'
 ];
 
 const assert = (condition, message) => { if (!condition) throw new Error(message); };
@@ -52,10 +53,20 @@ let adminTeamCodes = await scalar("select count(*)::int as n from public.kubb_co
 assert(adminTeamCodes.n === 2, 'expected the first two teams to receive admin access');
 let prepared = await scalar("select count(*)::int as a, (select count(*)::int from public.kubb_matches where stage ~ '^b_(r[0-9]+|qf|sf|final|bronze)$') as b from public.kubb_matches where stage ~ '^a_(r[0-9]+|qf|sf|final|bronze)$'");
 assert(prepared.a > 0 && prepared.b > 0, 'expected A and B playoff trees to exist when groups are drawn');
+let redrawWorked = false;
+try { await db.query("select public.kubb_admin_generate_groups('ENDRE_MEG')"); redrawWorked = true; } catch (_) {}
+assert(!redrawWorked, 'the public draw should be locked after it has run');
 
 // Tolv lag gir fire trelags-puljer. A-puljen får åtte lag og B-puljen fire.
+await db.query("select public.kubb_admin_reset('ENDRE_MEG')");
 await db.query('select public.kubb_admin_set_teams($1, $2::jsonb)', ['ENDRE_MEG', JSON.stringify(teams(12))]);
-await db.query("select public.kubb_admin_settings('ENDRE_MEG', 'Kilkast test', 40, 1, 2)");
+const oldTeamAccess = await scalar("select c.code, c.team_id from public.kubb_codes c where c.role = 'team' order by c.code limit 1");
+const regenerated = (await db.query("select public.kubb_admin_regenerate_team_code('ENDRE_MEG', $1) as value", [oldTeamAccess.team_id])).rows[0];
+assert(regenerated.value.code && regenerated.value.code !== oldTeamAccess.code, 'an individual team code was not regenerated');
+const oldLogin = await scalar(`select public.kubb_login('${oldTeamAccess.code}') as login`);
+const newLogin = await scalar(`select public.kubb_login('${regenerated.value.code}') as login`);
+assert(!oldLogin.login.ok && newLogin.login.ok, 'the regenerated team code did not replace the old code');
+await db.query("select public.kubb_admin_settings('ENDRE_MEG', 'Kilkast test', 40, 2, 2)");
 await db.query("select public.kubb_admin_generate_groups('ENDRE_MEG')");
 
 let count = await scalar("select count(*)::int as n from public.kubb_matches where stage = 'group'");
@@ -65,10 +76,17 @@ let readyCount = await scalar("select count(*)::int as n from public.kubb_matche
 assert(readyCount.n === 0, 'matches should not be assigned to courts automatically');
 const firstQueued = await scalar("select id from public.kubb_matches where stage = 'group' and status = 'queued' order by order_no limit 1");
 await db.query('select public.kubb_select_court_match($1, $2, $3)', ['ENDRE_MEG', 1, firstQueued.id]);
-const teamAccess = await scalar("select code from public.kubb_codes where role = 'team' limit 1");
+const teamAccess = { code:regenerated.value.code };
 let teamCouldStart = false;
 try { await db.query('select public.kubb_start_match($1, $2)', [teamAccess.code, firstQueued.id]); teamCouldStart = true; } catch (_) {}
 assert(!teamCouldStart, 'a team code should not be able to start a match');
+await db.query('select public.kubb_admin_move_court_match($1, $2, $3)', ['ENDRE_MEG', firstQueued.id, 2]);
+let moved = await scalar(`select status, court from public.kubb_matches where id = '${firstQueued.id}'`);
+assert(moved.status === 'ready' && moved.court === 2, 'a ready match was not moved to another court');
+await db.query('select public.kubb_admin_release_court_match($1, $2)', ['ENDRE_MEG', firstQueued.id]);
+moved = await scalar(`select status, court from public.kubb_matches where id = '${firstQueued.id}'`);
+assert(moved.status === 'queued' && moved.court === null, 'a ready match was not returned to the queue');
+await db.query('select public.kubb_select_court_match($1, $2, $3)', ['ENDRE_MEG', 1, firstQueued.id]);
 
 const alternate = await db.query(`
   select q.id as next_match, r.id as current_match, r.court
@@ -100,9 +118,16 @@ await db.query('select public.kubb_start_match($1, $2)', ['ENDRE_MEG', expiring.
 let teamCouldPause = false;
 try { await db.query('select public.kubb_pause_match($1, $2)', [teamAccess.code, expiring.id]); teamCouldPause = true; } catch (_) {}
 assert(!teamCouldPause, 'a team code should not be able to pause a match');
+await db.query("select public.kubb_admin_add_match_time('ENDRE_MEG', $1, 5)", [expiring.id]);
+let extension = await scalar(`select extra_seconds from public.kubb_matches where id = '${expiring.id}'`);
+assert(extension.extra_seconds === 300, 'five minutes were not added to the match');
 await db.query("update public.kubb_matches set started_at = now() - interval '41 minutes' where id = $1", [expiring.id]);
 await db.query("select public.kubb_finish_expired_matches('ENDRE_MEG')");
 let expired = await scalar(`select status, result from public.kubb_matches where id = '${expiring.id}'`);
+assert(expired.status === 'live', 'the match expired before its added time was used');
+await db.query("update public.kubb_matches set started_at = now() - interval '46 minutes' where id = $1", [expiring.id]);
+await db.query("select public.kubb_finish_expired_matches('ENDRE_MEG')");
+expired = await scalar(`select status, result from public.kubb_matches where id = '${expiring.id}'`);
 assert(expired.status === 'finished' && expired.result === 'draw', 'expired group match did not become a draw');
 let replacement = await db.query('select status from public.kubb_matches where court = 1');
 assert(replacement.rows.length === 0, 'a new match was automatically assigned to the freed court');
@@ -160,6 +185,22 @@ assert(phase.phase === 'semifinal_review', 'semifinal review phase was not enter
 await db.query("select public.kubb_admin_phase_action('ENDRE_MEG', 'start_knockout')");
 let seeded = await scalar("select count(*)::int as a, (select count(*)::int from public.kubb_matches where stage = 'b_sf' and team_a is not null and team_b is not null) as b from public.kubb_matches where stage = 'a_sf' and team_a is not null and team_b is not null");
 assert(seeded.a === 2 && seeded.b === 2, `expected seeded A and B semifinals, got ${seeded.a} A and ${seeded.b} B`);
+
+const aSemis = await db.query("select id, team_b, feeds_match, feeds_side from public.kubb_matches where stage = 'a_sf' order by order_no");
+await playMatch(aSemis.rows[0].id, 'a');
+await playMatch(aSemis.rows[1].id, 'a');
+await db.query('select public.kubb_select_court_match($1, $2, $3)', ['ENDRE_MEG', 1, aSemis.rows[0].feeds_match]);
+let correctionWasBlocked = false;
+try { await db.query('select public.kubb_admin_correct_result($1, $2, $3)', ['ENDRE_MEG', aSemis.rows[0].id, 'b']); } catch (_) { correctionWasBlocked = true; }
+assert(correctionWasBlocked, 'a result correction should be blocked while a dependent final is ready');
+const resetPath = (await db.query('select public.kubb_admin_reset_downstream($1, $2) as value', ['ENDRE_MEG', aSemis.rows[0].id])).rows[0].value;
+assert(resetPath.count >= 2, 'the dependent final and bronze match were not reset');
+let resetFinal = await scalar(`select status, team_a, team_b from public.kubb_matches where id = '${aSemis.rows[0].feeds_match}'`);
+assert(resetFinal.status === 'queued', 'the dependent final was not returned to the queue');
+assert((aSemis.rows[0].feeds_side === 'a' ? resetFinal.team_a : resetFinal.team_b) === null, 'the affected final slot was not cleared');
+await db.query('select public.kubb_admin_correct_result($1, $2, $3)', ['ENDRE_MEG', aSemis.rows[0].id, 'b']);
+resetFinal = await scalar(`select team_a, team_b from public.kubb_matches where id = '${aSemis.rows[0].feeds_match}'`);
+assert((aSemis.rows[0].feeds_side === 'a' ? resetFinal.team_a : resetFinal.team_b) === aSemis.rows[0].team_b, 'the corrected winner was not propagated into the reset final');
 
 for (;;) {
   const next = await db.query("select id from public.kubb_matches where stage ~ '^[ab]_(sf|final|bronze)$' and status <> 'finished' and team_a is not null and team_b is not null order by order_no limit 1");
