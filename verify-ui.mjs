@@ -26,6 +26,15 @@ const makeMatch = (n, court, status, a, b, minutes, label, readyMinutes = 0) => 
   ready_at:readyMinutes ? new Date(now - readyMinutes * 60000).toISOString() : null,
   deferred_until:null
 });
+const makeBracketMatch = (n, stage, slot, label, sourceA, sourceB) => ({
+  id:matchId(n), stage, grp:null, round:null, slot, label,
+  team_a:null, team_b:null, source_a:sourceA, source_b:sourceB,
+  court:null, status:'queued', order_no:400000 + n,
+  started_at:null, paused_at:null, pause_accum:0, extra_seconds:0, ended_at:null,
+  result:null, score_a:null, score_b:null, feeds_match:null, feeds_side:null,
+  loser_feeds_match:null, loser_feeds_side:null,
+  created_at:new Date(now - 3600000).toISOString(), ready_at:null, deferred_until:null
+});
 const matches = [
   makeMatch(1, 1, 'live',   0,  1, 12,   'Pulje A · runde 1'),
   makeMatch(2, 2, 'live',   2,  3, 41,   'Pulje A · runde 1'),
@@ -34,7 +43,14 @@ const matches = [
   makeMatch(5, 5, 'ready',  8,  9, null, 'Pulje C · runde 1', 6),
   makeMatch(6, 1, 'ready', 10, 11, null, 'Pulje C · runde 2', 1),
   makeMatch(7, null, 'queued', 12, 13, null, 'Pulje D · runde 1'),
-  makeMatch(8, null, 'queued', 14, 15, null, 'Pulje D · runde 1')
+  makeMatch(8, null, 'queued', 14, 15, null, 'Pulje D · runde 1'),
+  makeBracketMatch(9,  'a_sf',     2, 'A-sluttspill · semifinale 2', '1. A2-pulje', '2. A1-pulje'),
+  makeBracketMatch(10, 'a_final',  1, 'A-sluttspill · finale', 'Vinner semifinale 1', 'Vinner semifinale 2'),
+  makeBracketMatch(11, 'a_bronze', 1, 'A-sluttspill · bronsefinale', 'Taper semifinale 1', 'Taper semifinale 2'),
+  makeBracketMatch(12, 'b_sf',     1, 'B-sluttspill · semifinale 1', '1. B1-pulje', '2. B2-pulje'),
+  makeBracketMatch(13, 'b_sf',     2, 'B-sluttspill · semifinale 2', '1. B2-pulje', '2. B1-pulje'),
+  makeBracketMatch(14, 'b_final',  1, 'B-sluttspill · finale', 'Vinner semifinale 1', 'Vinner semifinale 2'),
+  makeBracketMatch(15, 'b_bronze', 1, 'B-sluttspill · bronsefinale', 'Taper semifinale 1', 'Taper semifinale 2')
 ];
 matches[1].stage = 'a_sf';
 matches[1].grp = null;
@@ -115,6 +131,28 @@ try {
   if (await page.getByRole('button', { name:'Stryk lag', exact:true }).count() !== 16) throw new Error('Arrangøren kan ikke stryke hvert lag');
   if (!await page.locator('.sheet').getByText(/Spiller på bane 1/).count()) throw new Error('Lagstatus viser ikke hvem som spiller');
   await page.locator('.sheet').getByRole('button', { name:'Lukk' }).click();
+
+  await page.getByRole('button', { name:'Gruppespill', exact:true }).click();
+  if (!await page.getByRole('button', { name:'Gruppespill 1', exact:true }).count() || !await page.getByRole('button', { name:'Gruppespill 2', exact:true }).count()) throw new Error('Valget mellom de to gruppespillene mangler');
+  await page.getByRole('button', { name:'Gruppespill 2', exact:true }).click();
+  const secondGroupText = (await page.locator('#view').innerText()).replace(/\s+/g, ' ');
+  if (!secondGroupText.includes('A1 · A2') || !secondGroupText.includes('B1 · B2')) throw new Error('Gruppespill 2 forklarer ikke A1/A2 og B1/B2 før det er generert');
+
+  await page.getByRole('button', { name:'Knockout', exact:true }).click();
+  if (!await page.getByRole('button', { name:'A-sluttspill', exact:true }).count() || !await page.getByRole('button', { name:'B-sluttspill', exact:true }).count()) throw new Error('A/B-valget i sluttspillet mangler på mobil');
+  if (!await page.locator('.knockout-pool[data-pool="a"]').isVisible() || await page.locator('.knockout-pool[data-pool="b"]').isVisible()) throw new Error('Mobilvisningen viser ikke valgt A-sluttspill alene');
+  await page.getByRole('button', { name:'B-sluttspill', exact:true }).click();
+  if (!await page.locator('.knockout-pool[data-pool="b"]').isVisible() || await page.locator('.knockout-pool[data-pool="a"]').isVisible()) throw new Error('Det går ikke å velge B-sluttspillet på mobil');
+  await page.waitForTimeout(30);
+  const focusedTag = await page.evaluate(() => document.activeElement?.tagName);
+  if (['INPUT','TEXTAREA','SELECT'].includes(focusedTag)) throw new Error('Tastaturfelt beholder fokus på sluttspillsiden');
+
+  await page.setViewportSize({ width:844, height:390 });
+  const aPool = await page.locator('.knockout-pool[data-pool="a"]').boundingBox();
+  const bPool = await page.locator('.knockout-pool[data-pool="b"]').boundingBox();
+  if (!aPool || !bPool || Math.abs(aPool.y - bPool.y) > 4 || aPool.x >= bPool.x) throw new Error('A- og B-sluttspillet står ikke side om side i landskap');
+  await page.setViewportSize({ width:390, height:844 });
+  await page.getByRole('button', { name:'Baner', exact:true }).click();
 
   await page.getByRole('button', { name:'Kun oversikt' }).click();
   const tvNumbers = await page.locator('.court-no').allTextContents();

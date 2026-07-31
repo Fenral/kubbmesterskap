@@ -360,6 +360,7 @@ tr.stand-click:hover td,tr.stand-click:focus-visible td{background:var(--surface
 .legend{margin-top:var(--s4);font-size:12.5px;line-height:1.5;color:var(--ink-2)}
 
 /* ---------------- gruppevisning ---------------- */
+.stage-switch{margin-bottom:var(--s4)}
 .group-tabs{display:flex;gap:7px;overflow-x:auto;padding:2px var(--s4) 6px;margin:0 calc(var(--s4) * -1);scrollbar-width:none;-webkit-overflow-scrolling:touch}
 .group-tabs::-webkit-scrollbar{display:none}
 .group-tabs button{flex:0 0 auto;padding:9px 12px;border:1px solid var(--line-2);border-radius:999px;background:var(--surface);color:var(--ink-2);font-size:12px;font-weight:620;line-height:1;white-space:nowrap;box-shadow:var(--shadow-1)}
@@ -379,6 +380,13 @@ tr.stand-click:hover td,tr.stand-click:focus-visible td{background:var(--surface
 .group-matches-head{display:flex;align-items:baseline;justify-content:space-between;gap:var(--s3);margin:0 0 var(--s3)}
 .group-matches-head h2{font-size:19px;font-weight:640;letter-spacing:-.025em}
 .group-matches-head span{color:var(--ink-3);font:600 11px/1 var(--mono);font-variant-numeric:tabular-nums;white-space:nowrap}
+.stage-preview{padding:var(--s6);text-align:center}
+.stage-preview h2{font-size:20px;margin-bottom:6px}
+.stage-preview>p{max-width:48ch;margin:0 auto;color:var(--ink-2);font-size:13.5px;line-height:1.55}
+.stage-route{display:grid;grid-template-columns:1fr 1fr;gap:8px;max-width:400px;margin:var(--s5) auto 0}
+.stage-route div{padding:13px 10px;border:1px solid var(--line);border-radius:var(--r1);background:var(--surface-2)}
+.stage-route b{display:block;font:650 18px/1 var(--mono);letter-spacing:.02em}
+.stage-route small{display:block;margin-top:6px;color:var(--ink-3);font-size:11.5px}
 
 /* ---------------- bracket ---------------- */
 .bracket{
@@ -409,13 +417,16 @@ tr.stand-click:hover td,tr.stand-click:focus-visible td{background:var(--surface
 .champ .n{font-size:21px;font-weight:660;letter-spacing:-.024em;margin-top:1px}
 
 /* ---------------- knockout ---------------- */
-.knockout-pool{margin-bottom:var(--s8)}
+.playoff-switch{margin-bottom:var(--s5)}
+.knockout-grid{display:grid;grid-template-columns:minmax(0,1fr)}
+.knockout-pool{display:none;min-width:0;margin-bottom:var(--s8)}
+.knockout-pool.is-selected{display:block}
 .knockout-pool:last-child{margin-bottom:0}
 .knockout-pool-head{display:flex;align-items:center;gap:10px;margin-bottom:var(--s3)}
 .knockout-pool-head b{display:grid;place-items:center;width:32px;height:32px;border-radius:50%;background:var(--ink);color:var(--on-ink);font:700 18px/.8 var(--mono)}
-.knockout-pool-head span{font-size:12px;font-weight:620;color:var(--ink-3);letter-spacing:.02em}
+.knockout-pool-head span{font-size:15px;font-weight:640;color:var(--ink);letter-spacing:-.01em}
 .knockout-pool .bracket{gap:22px;padding:var(--s3) 2px var(--s4);scroll-snap-type:x mandatory}
-.knockout-pool .round{min-width:188px;gap:10px}
+.knockout-pool .round{min-width:clamp(150px,calc((100vw - 70px)/2),188px);gap:10px}
 .knockout-pool .round>h3{font:620 10px/1 var(--mono);letter-spacing:.075em;text-transform:uppercase;color:var(--ink-3);padding-left:3px}
 .knockout-pool .round>.ties{gap:12px}
 .knockout-pool .tie{position:relative;min-height:70px;padding:11px 12px;border-radius:var(--r1);box-shadow:var(--shadow-1)}
@@ -425,6 +436,15 @@ tr.stand-click:hover td,tr.stand-click:focus-visible td{background:var(--surface
 .knockout-pool .tie .s{padding:3px 0;font-size:14.5px}
 .knockout-pool .tie .s.won::after{content:"✓";color:var(--go);font-weight:700}
 .knockout-pool .tie .s.lost{opacity:.58}
+@media(min-width:760px){
+  .playoff-switch{display:none}
+  .knockout-grid{grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:22px;align-items:start}
+  .knockout-pool,.knockout-pool.is-selected{display:block;margin:0}
+  .knockout-pool+.knockout-pool{border-left:1px solid var(--line);padding-left:22px}
+  .knockout-pool .bracket{gap:14px;overflow-x:auto}
+  .knockout-pool .round{min-width:164px}
+  .knockout-pool .round:not(:last-child) .tie::after{right:-15px;width:14px}
+}
 
 /* ---------------- tomme tilstander ---------------- */
 .blank{text-align:center;padding:var(--s8) var(--s5)}
@@ -697,7 +717,7 @@ const S = {
   code:null, role:null, teamId:null, teamName:null,
   t:{ name:'Kilkast', match_seconds:2400, num_courts:6, phase:'setup', qualifiers_per_group:2 },
   teams:[], matches:[], standings:[], audit:[],
-  offset:0, tab:'courts', filter:'all', groupView:null, tv:false, ready:false,
+  offset:0, tab:'courts', filter:'all', groupStage:'group', groupView:null, playoffView:'a', tv:false, ready:false,
   seenOnCourt:{}, assignmentPops:new Set(), adminAlerted:new Set()
 };
 const isAdmin = () => S.role === 'admin';
@@ -839,6 +859,7 @@ async function rpc(fn, args, done){
 }
 
 async function boot(){
+  dismissKeyboard();
   $('#auth').classList.add('hide');
   $('#app').classList.remove('hide');
   await pullAll();
@@ -1007,7 +1028,13 @@ function buildNav(){
   ).join('');
   n.querySelectorAll('button').forEach(b => b.onclick = () => go(b.dataset.tab));
 }
+function dismissKeyboard(){
+  const active = document.activeElement;
+  if(active && typeof active.blur === 'function') active.blur();
+  setTimeout(() => $('#view')?.focus({ preventScroll:true }), 0);
+}
 function go(tab){
+  dismissKeyboard();
   if(S.tab === tab) { window.scrollTo({ top:0, behavior: reduced() ? 'auto' : 'smooth' }); return; }
   S.tab = tab; buildNav(); paint(); window.scrollTo(0,0);
 }
@@ -1054,7 +1081,9 @@ function wire(){
       notify:  () => enableNotifications(),
       awake:   () => toggleWakeLock(),
       filter:  () => { S.filter = id; paint(); },
+      groupStage: () => { S.groupStage = id; S.groupView = null; paint(); },
       group:   () => { S.groupView = id; paint(); },
+      playoff: () => { S.playoffView = id; paint(); },
       teamMatches: () => sheetTeamMatches(id),
       tv:      () => bigScreen(!S.tv),
       keys:    () => sheetKeys(),
@@ -1336,7 +1365,22 @@ function viewGroups(){
   if(!S.standings.length) return blank('Ingen lag ennå',
     isAdmin() ? 'Legg inn lagene, så bygger tabellen seg selv etter hvert som resultatene kommer inn.' : 'Tabellen fylles ut når lagene er lagt inn.',
     isAdmin() ? `<button class="btn primary" data-do="teams">Legg inn lag</button>` : '');
-  const groups = [...new Set(S.standings.map(s => `${s.stage || 'group'}|${s.grp}`))].sort();
+  const second = S.groupStage === 'final_groups';
+  const stageSwitch = `<div class="seg stage-switch" role="group" aria-label="Velg gruppespill">
+    <button type="button" data-do="groupStage" data-id="group" aria-pressed="${!second}">Gruppespill 1</button>
+    <button type="button" data-do="groupStage" data-id="final_groups" aria-pressed="${second}">Gruppespill 2</button>
+  </div>`;
+  const groups = [...new Set(S.standings
+    .filter(s => second ? ['a_group','b_group'].includes(s.stage) : (s.stage || 'group') === 'group')
+    .map(s => `${s.stage || 'group'}|${s.grp}`))].sort((a,b) => a.localeCompare(b, 'no', { numeric:true }));
+  if(!groups.length) return stageSwitch + `<section class="panel stage-preview" aria-live="polite">
+    <h2>Gruppespill 2</h2>
+    <p>De to beste fra hver av de første gruppene går til A-sporet. De to andre går til B-sporet. Puljene fylles automatisk når arrangøren avslutter gruppespill 1.</p>
+    <div class="stage-route" aria-label="Puljer i gruppespill 2">
+      <div><b>A1 · A2</b><small>De to beste videre til A-semifinaler</small></div>
+      <div><b>B1 · B2</b><small>De to beste videre til B-semifinaler</small></div>
+    </div>
+  </section>`;
   const selected = groups.includes(S.groupView) ? S.groupView : groups[0];
   S.groupView = selected;
   const [stage, g] = selected.split('|');
@@ -1347,18 +1391,19 @@ function viewGroups(){
     .filter(m => m.stage === stage && String(m.grp) === String(g))
     .sort((a,b) => (a.round || 0) - (b.round || 0) || (a.order_no || 0) - (b.order_no || 0));
   const finished = matches.filter(m => m.status === 'finished').length;
-  const groupLabel = `Gruppe ${g}`;
+  const groupLabel = stage === 'group' ? `Gruppe ${g}` : g;
   const tabLabel = key => {
     const [tabStage, tabGroup] = key.split('|');
-    return tabStage === 'group' ? `Gruppe ${tabGroup}` : `${stageName(tabStage).replace('gruppespill','spill')} · ${tabGroup}`;
+    return tabStage === 'group' ? `Gruppe ${tabGroup}` : tabGroup;
   };
   return `
+    ${stageSwitch}
     <div class="group-tabs" role="navigation" aria-label="Velg gruppe">
       ${groups.map(key => `<button type="button" data-do="group" data-id="${esc(key)}"${key === selected ? ' aria-current="page"' : ''}>${esc(tabLabel(key))}</button>`).join('')}
     </div>
     <section aria-labelledby="group-title">
       <header class="group-header">
-        <div><div class="eyebrow">${esc(stageName(stage))} <small>${rows.length} lag</small></div><h2 id="group-title">${esc(groupLabel)}</h2></div>
+        <div><div class="eyebrow">${stage === 'group' ? 'Gruppespill 1' : `Gruppespill 2 · ${stage === 'a_group' ? 'A-sporet' : 'B-sporet'}`} <small>${rows.length} lag</small></div><h2 id="group-title">${esc(groupLabel)}</h2></div>
         <span class="group-count">${finished}/${matches.length} spilt</span>
       </header>
       <div class="group-board"><div class="tw"><table>
@@ -1372,7 +1417,7 @@ function viewGroups(){
       <header class="group-matches-head"><h2 id="group-matches-title">Kamper i ${esc(groupLabel)}</h2><span>${matches.length} kamper</span></header>
       ${matches.length ? `<div class="list">${matches.map(matchRow).join('')}</div>` : blank('Ingen kamper satt opp', 'Kampene for denne gruppen vises her så snart trekningen er gjennomført.')}
     </section>
-    <p class="legend">Rangering: poeng → innbyrdes → straffekast. K kamper · S seire · U uavgjort · T tap · P poeng. De to beste går videre over streken.</p>`;
+    <p class="legend">Rangering: poeng → innbyrdes → straffekast. K kamper · S seire · U uavgjort · T tap · P poeng. ${stage === 'group' ? 'De to beste går til A-sporet, de to andre til B-sporet.' : 'De to beste går direkte til semifinalene.'}</p>`;
 }
 
 function sheetTeamMatches(id){
@@ -1402,29 +1447,40 @@ function viewPlayoff(){
            : 'Begge gruppespill er ferdige. Utslagstrærne settes opp automatisk.',
       '');
   }
-  const order = ['r16','qf','sf','final','bronze'];
-  let h = '';
-  ['a','b'].forEach(pool => {
+  const renderTie = m => {
+    const a = tName(m.team_a), b = tName(m.team_b), done = m.status === 'finished';
+    const aw = done && m.result === 'a', bw = done && m.result === 'b';
+    const running = ['live','paused','ready'].includes(m.status);
+    const cap = [m.label, m.court ? `bane ${m.court}` : '', m.status === 'live' ? 'spilles nå' : ''].filter(Boolean).join(' · ');
+    const row = (name, src, won, lost) => `<div class="s ${won ? 'won' : lost ? 'lost' : ''} ${name ? '' : 'tbd'}"><span>${esc(name || src || '–')}</span></div>`;
+    return `<article class="tie" data-state="${running ? 'live' : ''}"><div class="cap">${esc(cap)}</div>${row(a, m.source_a, aw, done && bw)}${row(b, m.source_b, bw, done && aw)}</article>`;
+  };
+  const renderPool = pool => {
     const poolMatches = po.filter(m => m.stage.startsWith(pool + '_'));
-    if(!poolMatches.length) return;
+    if(!poolMatches.length) return '';
     const fin = poolMatches.find(m => m.stage === `${pool}_final` && m.status === 'finished');
-    if(fin){
+    const champion = fin ? (() => {
       const w = fin.result === 'a' ? tName(fin.team_a) : tName(fin.team_b);
-      h += `<div class="champ">${svg(ICON.cup)}<div><div class="t">Vinner</div><div class="n">${esc(w || '')}</div></div></div>`;
-    }
-    h += `<section class="knockout-pool"><header class="knockout-pool-head"><b>${pool.toUpperCase()}</b><span>Knockout</span></header><div class="bracket" id="bracket-${pool}">` +
-      order.filter(s => poolMatches.some(m => m.stage === `${pool}_${s}`)).map(s => `
-        <section class="round"><h3>${esc(STAGE[s] || s)}</h3><div class="ties">` +
-        poolMatches.filter(m => m.stage === `${pool}_${s}`).sort((a,b) => (a.slot||0) - (b.slot||0)).map(m => {
-          const a = tName(m.team_a), b = tName(m.team_b), done = m.status === 'finished';
-          const aw = done && m.result === 'a', bw = done && m.result === 'b';
-          const running = ['live','paused','ready'].includes(m.status);
-          const cap = [m.label, m.court ? `bane ${m.court}` : '', m.status === 'live' ? 'spilles nå' : ''].filter(Boolean).join(' · ');
-          const row = (name, src, won, lost) => `<div class="s ${won ? 'won' : lost ? 'lost' : ''} ${name ? '' : 'tbd'}"><span>${esc(name || src || '–')}</span></div>`;
-          return `<article class="tie" data-state="${running ? 'live' : ''}"><div class="cap">${esc(cap)}</div>${row(a, m.source_a, aw, done && bw)}${row(b, m.source_b, bw, done && aw)}</article>`;
-        }).join('') + `</div></section>`).join('') + `</div></section>`;
-  });
-  return h;
+      return `<div class="champ">${svg(ICON.cup)}<div><div class="t">Vinner av ${pool.toUpperCase()}-sluttspillet</div><div class="n">${esc(w || '')}</div></div></div>`;
+    })() : '';
+    const roundDefs = ['r16','qf','sf']
+      .filter(stage => poolMatches.some(m => m.stage === `${pool}_${stage}`))
+      .map(stage => ({ title:STAGE[stage] || stage, stages:[stage] }));
+    const medals = ['final','bronze'].filter(stage => poolMatches.some(m => m.stage === `${pool}_${stage}`));
+    if(medals.length) roundDefs.push({ title:'Finale og bronse', stages:medals });
+    const rounds = roundDefs.map(round => `<section class="round"><h3>${esc(round.title)}</h3><div class="ties">${round.stages.flatMap(stage =>
+      poolMatches.filter(m => m.stage === `${pool}_${stage}`).sort((a,b) => (a.slot||0) - (b.slot||0))
+    ).map(renderTie).join('')}</div></section>`).join('');
+    return `<section class="knockout-pool ${S.playoffView === pool ? 'is-selected' : ''}" data-pool="${pool}" aria-label="${pool.toUpperCase()}-sluttspill">
+      <header class="knockout-pool-head"><b>${pool.toUpperCase()}</b><span>${pool.toUpperCase()}-sluttspill</span></header>
+      ${champion}<div class="bracket" id="bracket-${pool}">${rounds}</div>
+    </section>`;
+  };
+  const pools = ['a','b'].filter(pool => po.some(m => m.stage.startsWith(pool + '_')));
+  if(!pools.includes(S.playoffView)) S.playoffView = pools[0] || 'a';
+  return `<div class="seg playoff-switch" role="group" aria-label="Velg sluttspill">
+    ${pools.map(pool => `<button type="button" data-do="playoff" data-id="${pool}" aria-pressed="${S.playoffView === pool}">${pool.toUpperCase()}-sluttspill</button>`).join('')}
+  </div><div class="knockout-grid">${pools.map(renderPool).join('')}</div>`;
 }
 
 /* ---------- arrangør ---------- */
@@ -1557,15 +1613,18 @@ function sheet(html){
   scrim.innerHTML = `<div class="sheet" role="dialog" aria-modal="true"><div class="grip"></div>${html}</div>`;
   const box = scrim.firstElementChild;
   const prev = document.activeElement;
+  const restorePrev = prev && !prev.matches?.('input,textarea,select,[contenteditable="true"]');
   openSheets++;
   document.body.style.overflow = 'hidden';
 
   const close = () => {
+    if(document.activeElement?.matches?.('input,textarea,select,[contenteditable="true"]')) document.activeElement.blur();
     scrim.classList.add('out');
     setTimeout(() => {
       scrim.remove();
       if(--openSheets <= 0){ openSheets = 0; document.body.style.overflow = ''; }
-      prev?.focus?.();
+      if(restorePrev && prev?.isConnected) prev.focus({ preventScroll:true });
+      else $('#view')?.focus({ preventScroll:true });
     }, reduced() ? 10 : 200);
     document.removeEventListener('keydown', onKey);
   };
