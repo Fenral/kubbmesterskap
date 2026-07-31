@@ -62,6 +62,18 @@ const standings = teams.map((team, i) => ({
   kubb_for:0, kubb_against:0, kubb_diff:0, points:(i % 3) * 3 + (i % 2),
   head_to_head_points:0, shootout_rank:null, pos:(i % 4) + 1
 }));
+const advancementLayout = [
+  ['A1',1,'A',1], ['A1',2,'B',2], ['A1',3,'C',1], ['A1',4,'D',2],
+  ['A2',1,'A',2], ['A2',2,'B',1], ['A2',3,'C',2], ['A2',4,'D',1],
+  ['B1',1,'A',3], ['B1',2,'B',4], ['B1',3,'C',3], ['B1',4,'D',4],
+  ['B2',1,'A',4], ['B2',2,'B',3], ['B2',3,'C',4], ['B2',4,'D',3]
+];
+const advancement = advancementLayout.map(([destination_grp,destination_slot,source_grp,source_pos]) => ({
+  destination_stage:destination_grp.startsWith('A') ? 'a_group' : 'b_group',
+  destination_grp, destination_slot, source_grp, source_pos,
+  team_id:null, team_name:null, is_manual:false, source_complete:false,
+  source_needs_tiebreak:false, placement_status:'waiting'
+}));
 const audit = [
   { id:9, action:'pause', label:'Pauset kamp', actor_name:'Kubbkongene', created_at:new Date(now - 120000).toISOString(), can_undo:true },
   { id:8, action:'start', label:'Startet kamp', actor_name:'Kubbkongene', created_at:new Date(now - 480000).toISOString(), can_undo:false }
@@ -88,10 +100,18 @@ await page.route('https://rknxxzxywmfkwsvojfiv.supabase.co/**', route => {
   if (path.endsWith('/rpc/kubb_now')) return send(new Date(now).toISOString());
   if (path.endsWith('/rpc/kubb_admin_recent_actions')) return send(audit);
   if (path.endsWith('/rpc/kubb_finish_expired_matches')) return send(0);
+  if (path.endsWith('/rpc/kubb_admin_set_advancement_slot')) {
+    const body = request.postDataJSON();
+    const slot = advancement.find(row => row.destination_grp === body.p_destination_grp && row.destination_slot === Number(body.p_destination_slot));
+    const selected = teams.find(team => team.id === body.p_team);
+    if (slot) Object.assign(slot, selected ? { team_id:selected.id, team_name:selected.name, is_manual:true, placement_status:'manual' } : { team_id:null, team_name:null, is_manual:false, placement_status:'waiting' });
+    return send({ ok:true });
+  }
   if (path.endsWith('/kubb_tournament')) return send({ id:1, name:'Kilkast test', match_seconds:2400, num_courts:5, phase:'group', planned_matches:56, qualifiers_per_group:2, drawn_at:new Date(now - 3600000).toISOString(), completed_at:null, updated_at:new Date(now).toISOString() });
   if (path.endsWith('/kubb_teams')) return send(teams);
   if (path.endsWith('/kubb_matches')) return send(matches);
   if (path.endsWith('/kubb_standings')) return send(standings);
+  if (path.endsWith('/kubb_advancement_slots')) return send(advancement);
   return send(null);
 });
 
@@ -135,8 +155,17 @@ try {
   await page.getByRole('button', { name:'Gruppespill', exact:true }).click();
   if (!await page.getByRole('button', { name:'Gruppespill 1', exact:true }).count() || !await page.getByRole('button', { name:'Gruppespill 2', exact:true }).count()) throw new Error('Valget mellom de to gruppespillene mangler');
   await page.getByRole('button', { name:'Gruppespill 2', exact:true }).click();
-  const secondGroupText = (await page.locator('#view').innerText()).replace(/\s+/g, ' ');
-  if (!secondGroupText.includes('A1 · A2') || !secondGroupText.includes('B1 · B2')) throw new Error('Gruppespill 2 forklarer ikke A1/A2 og B1/B2 før det er generert');
+  const secondGroups = await page.locator('.advance-card .advance-card-head h3').allTextContents();
+  if (secondGroups.join(',') !== 'A1,A2,B1,B2') throw new Error(`Gruppespill 2 viser ikke alle fire puljene: ${secondGroups.join(',')}`);
+  if (await page.locator('.advance-slot').count() !== 16) throw new Error('Gruppespill 2 viser ikke alle 16 plassene');
+  const a1Sources = await page.locator('.advance-card').filter({ has:page.getByRole('heading', { name:'A1', exact:true }) }).locator('.advance-slot-copy b').allTextContents();
+  if (a1Sources.join(',') !== '1. plass fra gruppe A,2. plass fra gruppe B,1. plass fra gruppe C,2. plass fra gruppe D') throw new Error(`A1 har feil fordelingsmatrise: ${a1Sources.join(',')}`);
+  await page.getByRole('button', { name:'Endre plass 1 i A1', exact:true }).click();
+  if (await page.locator('.sheet [data-team]').count() !== 17) throw new Error('Arrangøren får ikke velge automatisk plassering eller alle 16 lag');
+  await page.locator('.sheet [data-team]').filter({ hasText:'Furu Fighters' }).click();
+  await page.locator('.sheet').waitFor({ state:'detached' });
+  const manualSlot = page.locator('.advance-card').filter({ has:page.getByRole('heading', { name:'A1', exact:true }) }).locator('.advance-slot').first();
+  if (!await manualSlot.getByText('Furu Fighters', { exact:true }).count() || await manualSlot.getAttribute('data-status') !== 'manual') throw new Error('Manuell reserveplassering vises ikke i puljen');
 
   await page.getByRole('button', { name:'Knockout', exact:true }).click();
   if (!await page.getByRole('button', { name:'A-sluttspill', exact:true }).count() || !await page.getByRole('button', { name:'B-sluttspill', exact:true }).count()) throw new Error('A/B-valget i sluttspillet mangler på mobil');

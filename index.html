@@ -380,13 +380,30 @@ tr.stand-click:hover td,tr.stand-click:focus-visible td{background:var(--surface
 .group-matches-head{display:flex;align-items:baseline;justify-content:space-between;gap:var(--s3);margin:0 0 var(--s3)}
 .group-matches-head h2{font-size:19px;font-weight:640;letter-spacing:-.025em}
 .group-matches-head span{color:var(--ink-3);font:600 11px/1 var(--mono);font-variant-numeric:tabular-nums;white-space:nowrap}
-.stage-preview{padding:var(--s6);text-align:center}
-.stage-preview h2{font-size:20px;margin-bottom:6px}
-.stage-preview>p{max-width:48ch;margin:0 auto;color:var(--ink-2);font-size:13.5px;line-height:1.55}
-.stage-route{display:grid;grid-template-columns:1fr 1fr;gap:8px;max-width:400px;margin:var(--s5) auto 0}
-.stage-route div{padding:13px 10px;border:1px solid var(--line);border-radius:var(--r1);background:var(--surface-2)}
-.stage-route b{display:block;font:650 18px/1 var(--mono);letter-spacing:.02em}
-.stage-route small{display:block;margin-top:6px;color:var(--ink-3);font-size:11.5px}
+.advance-board-head{display:flex;align-items:end;justify-content:space-between;gap:var(--s3);margin:var(--s6) 2px var(--s3)}
+.advance-board-head h2{font-size:20px;letter-spacing:-.025em}
+.advance-board-head span{color:var(--ink-3);font:600 11px/1 var(--mono);font-variant-numeric:tabular-nums;white-space:nowrap}
+.advance-grid{display:grid;grid-template-columns:1fr;gap:10px}
+.advance-card{overflow:hidden;border:1px solid var(--line);border-radius:var(--r2);background:var(--surface);box-shadow:var(--shadow-1)}
+.advance-card-head{display:flex;align-items:center;justify-content:space-between;padding:12px var(--s4);background:var(--ink);color:var(--on-ink)}
+.advance-card-head h3{font:680 21px/1 var(--mono);letter-spacing:.01em}
+.advance-card-head span{font-size:11px;font-weight:600;opacity:.68}
+.advance-slots{list-style:none;margin:0;padding:0}
+.advance-slot{position:relative;display:grid;grid-template-columns:26px minmax(0,1fr) auto;align-items:center;gap:10px;min-height:61px;padding:10px 10px 10px var(--s3);border-top:1px solid var(--line)}
+.advance-slot:first-child{border-top:0}
+.advance-slot::before{content:"";position:absolute;left:24px;top:0;bottom:0;width:1px;background:var(--line)}
+.advance-slot:first-child::before{top:50%}.advance-slot:last-child::before{bottom:50%}
+.advance-slot-no{position:relative;z-index:1;display:grid;place-items:center;width:25px;height:25px;border-radius:50%;background:var(--surface-2);border:1px solid var(--line-2);font:650 11px/1 var(--mono)}
+.advance-slot-copy{min-width:0}
+.advance-slot-copy b{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:14px;font-weight:610;letter-spacing:-.012em}
+.advance-slot-copy small{display:block;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--ink-3);font-size:11.5px}
+.advance-slot[data-status="automatic"] .advance-slot-no{background:var(--go-w);border-color:color-mix(in oklch,var(--go) 30%,var(--line));color:var(--go)}
+.advance-slot[data-status="manual"]{background:var(--surface-2)}
+.advance-slot[data-status="manual"] .advance-slot-no{background:var(--ink);border-color:var(--ink);color:var(--on-ink)}
+.advance-slot[data-status="tiebreak"] .advance-slot-no{background:var(--warn-w);border-color:color-mix(in oklch,var(--warn) 35%,var(--line));color:var(--warn)}
+.advance-edit{min-height:32px;padding:0 9px;border:1px solid var(--line-2);border-radius:8px;background:var(--surface);font-size:11.5px;font-weight:610;box-shadow:var(--shadow-1)}
+.advance-note{margin:var(--s3) 2px 0;color:var(--ink-3);font-size:12px;line-height:1.45}
+@media(min-width:600px){.advance-grid{grid-template-columns:1fr 1fr}}
 
 /* ---------------- bracket ---------------- */
 .bracket{
@@ -716,7 +733,7 @@ const svg = (d, s) => `<svg viewBox="0 0 24 24" aria-hidden="true"${s?` style="$
 const S = {
   code:null, role:null, teamId:null, teamName:null,
   t:{ name:'Kilkast', match_seconds:2400, num_courts:6, phase:'setup', qualifiers_per_group:2 },
-  teams:[], matches:[], standings:[], audit:[],
+  teams:[], matches:[], standings:[], advancement:[], audit:[],
   offset:0, tab:'courts', filter:'all', groupStage:'group', groupView:null, playoffView:'a', tv:false, ready:false,
   seenOnCourt:{}, assignmentPops:new Set(), adminAlerted:new Set()
 };
@@ -817,18 +834,20 @@ function signOut(){ store.del('kubb.code'); location.reload(); }
    ================================================================ */
 async function pullAll(){
   const previousMatches = S.matches;
-  const [c, t, tm, mt, st] = await Promise.all([
+  const [c, t, tm, mt, st, ad] = await Promise.all([
     sb.rpc('kubb_now'),
     sb.from('kubb_tournament').select('*').eq('id',1).maybeSingle(),
     sb.from('kubb_teams').select('*'),
     sb.from('kubb_matches').select('*').order('order_no'),
-    sb.from('kubb_standings').select('*')
+    sb.from('kubb_standings').select('*'),
+    sb.from('kubb_advancement_slots').select('*').order('destination_grp').order('destination_slot')
   ]);
   if(c.data) S.offset = Date.parse(c.data) - Date.now();
   if(t.data) S.t = t.data;
   S.teams = (tm.data || []).filter(team => !team.withdrawn_at);
   S.matches = mt.data || [];
   S.standings = st.data || [];
+  S.advancement = ad.data || [];
   if(isAdmin() && S.code){
     const { data } = await sb.rpc('kubb_admin_recent_actions', { p_code:S.code, p_limit:8 });
     S.audit = data || [];
@@ -1083,6 +1102,7 @@ function wire(){
       filter:  () => { S.filter = id; paint(); },
       groupStage: () => { S.groupStage = id; S.groupView = null; paint(); },
       group:   () => { S.groupView = id; paint(); },
+      advance: () => isAdmin() && sheetAdvancementSlot(id),
       playoff: () => { S.playoffView = id; paint(); },
       teamMatches: () => sheetTeamMatches(id),
       tv:      () => bigScreen(!S.tv),
@@ -1361,6 +1381,51 @@ function viewMatches(){
 }
 
 /* ---------- puljer og kamper ---------- */
+const ADVANCEMENT_LAYOUT = [
+  ['A1',1,'A',1], ['A1',2,'B',2], ['A1',3,'C',1], ['A1',4,'D',2],
+  ['A2',1,'A',2], ['A2',2,'B',1], ['A2',3,'C',2], ['A2',4,'D',1],
+  ['B1',1,'A',3], ['B1',2,'B',4], ['B1',3,'C',3], ['B1',4,'D',4],
+  ['B2',1,'A',4], ['B2',2,'B',3], ['B2',3,'C',4], ['B2',4,'D',3]
+];
+function advancementRows(){
+  if(S.advancement.length) return S.advancement;
+  return ADVANCEMENT_LAYOUT.map(([destination_grp,destination_slot,source_grp,source_pos]) => ({
+    destination_grp, destination_slot, source_grp, source_pos,
+    team_id:null, team_name:null, is_manual:false, placement_status:'waiting'
+  }));
+}
+function advancementBoard(){
+  const rows = advancementRows();
+  const editable = isAdmin() && ['group','group_review'].includes(S.t.phase);
+  const filled = rows.filter(row => row.team_id).length;
+  const statusCopy = row => {
+    const source = `${row.source_pos}. plass fra gruppe ${row.source_grp}`;
+    if(row.placement_status === 'manual') return [row.team_name || 'Valgt lag', 'Satt manuelt av arrangør'];
+    if(row.placement_status === 'automatic') return [row.team_name || source, `${source} · automatisk`];
+    if(row.placement_status === 'tiebreak') return ['Avventer straffekast', source];
+    if(row.placement_status === 'missing') return ['Plassen må kontrolleres', source];
+    return [source, `Fylles når gruppe ${row.source_grp} er ferdig`];
+  };
+  const cards = ['A1','A2','B1','B2'].map(grp => {
+    const slots = rows.filter(row => row.destination_grp === grp).sort((a,b) => a.destination_slot - b.destination_slot);
+    return `<article class="advance-card">
+      <header class="advance-card-head"><h3>${grp}</h3><span>${grp.startsWith('A') ? 'A-sporet' : 'B-sporet'}</span></header>
+      <ol class="advance-slots">${slots.map(row => {
+        const [title, meta] = statusCopy(row);
+        return `<li class="advance-slot" data-status="${esc(row.placement_status)}">
+          <span class="advance-slot-no">${row.destination_slot}</span>
+          <div class="advance-slot-copy"><b>${esc(title)}</b><small>${esc(meta)}</small></div>
+          ${editable ? `<button type="button" class="advance-edit" data-do="advance" data-id="${grp}|${row.destination_slot}" aria-label="Endre plass ${row.destination_slot} i ${grp}">Endre</button>` : ''}
+        </li>`;
+      }).join('')}</ol>
+    </article>`;
+  }).join('');
+  return `<section aria-labelledby="advance-title">
+    <header class="advance-board-head"><h2 id="advance-title">Gruppene i runde 2</h2><span>${filled}/16 plassert</span></header>
+    <div class="advance-grid">${cards}</div>
+    <p class="advance-note">Hvert lag fylles inn så snart kildegruppen er ferdig og eventuelle straffekast er avgjort.${editable ? ' Arrangøren kan bruke Endre som manuell sikring.' : ''}</p>
+  </section>`;
+}
 function viewGroups(){
   if(!S.standings.length) return blank('Ingen lag ennå',
     isAdmin() ? 'Legg inn lagene, så bygger tabellen seg selv etter hvert som resultatene kommer inn.' : 'Tabellen fylles ut når lagene er lagt inn.',
@@ -1373,14 +1438,8 @@ function viewGroups(){
   const groups = [...new Set(S.standings
     .filter(s => second ? ['a_group','b_group'].includes(s.stage) : (s.stage || 'group') === 'group')
     .map(s => `${s.stage || 'group'}|${s.grp}`))].sort((a,b) => a.localeCompare(b, 'no', { numeric:true }));
-  if(!groups.length) return stageSwitch + `<section class="panel stage-preview" aria-live="polite">
-    <h2>Gruppespill 2</h2>
-    <p>De to beste fra hver av de første gruppene går til A-sporet. De to andre går til B-sporet. Puljene fylles automatisk når arrangøren avslutter gruppespill 1.</p>
-    <div class="stage-route" aria-label="Puljer i gruppespill 2">
-      <div><b>A1 · A2</b><small>De to beste videre til A-semifinaler</small></div>
-      <div><b>B1 · B2</b><small>De to beste videre til B-semifinaler</small></div>
-    </div>
-  </section>`;
+  const board = second ? advancementBoard() : '';
+  if(!groups.length) return stageSwitch + board;
   const selected = groups.includes(S.groupView) ? S.groupView : groups[0];
   S.groupView = selected;
   const [stage, g] = selected.split('|');
@@ -1398,6 +1457,7 @@ function viewGroups(){
   };
   return `
     ${stageSwitch}
+    ${board}
     <div class="group-tabs" role="navigation" aria-label="Velg gruppe">
       ${groups.map(key => `<button type="button" data-do="group" data-id="${esc(key)}"${key === selected ? ' aria-current="page"' : ''}>${esc(tabLabel(key))}</button>`).join('')}
     </div>
@@ -1433,6 +1493,39 @@ function sheetTeamMatches(id){
     ${!rows.length ? `<p class="lede">Ingen kamper er satt opp for laget ennå.</p>` : ''}
     <div style="margin-top:20px"><button class="btn ghost block" data-x="close">Lukk</button></div>`);
   box.querySelector('[data-x="close"]').onclick = close;
+}
+
+function sheetAdvancementSlot(id){
+  const [grp, slotText] = id.split('|');
+  const slotNo = Number(slotText);
+  const slot = advancementRows().find(row => row.destination_grp === grp && Number(row.destination_slot) === slotNo);
+  if(!slot || !['group','group_review'].includes(S.t.phase)) return;
+  const source = `${slot.source_pos}. plass fra gruppe ${slot.source_grp}`;
+  const teams = S.teams.slice().sort((a,b) => a.name.localeCompare(b.name, 'no'));
+  const { box, close } = sheet(`
+    <h2>Plass ${slotNo} i ${esc(grp)}</h2>
+    <p class="lede">Automatisk plass er ${esc(source)}. Bruk bare manuell plassering hvis noe må korrigeres.</p>
+    <button type="button" class="choice ${slot.is_manual ? '' : 'accent'}" data-team="">
+      <span class="k">A</span><span><b>Bruk automatisk plassering</b><small>${esc(source)}</small></span>
+    </button>
+    <div class="eyebrow">Sett inn et lag manuelt</div>
+    <div>${teams.map(t => {
+      const elsewhere = advancementRows().find(row => row.is_manual && row.team_id === t.id && (row.destination_grp !== grp || Number(row.destination_slot) !== slotNo));
+      return `<button type="button" class="choice ${slot.is_manual && slot.team_id === t.id ? 'accent' : ''}" data-team="${t.id}">
+        <span class="k">${esc(t.grp || '–')}</span><span><b>${esc(t.name)}</b><small>${elsewhere ? `Flyttes fra ${esc(elsewhere.destination_grp)}, plass ${elsewhere.destination_slot}` : `Opprinnelig gruppe ${esc(t.grp || '–')}`}</small></span>
+      </button>`;
+    }).join('')}</div>
+    <button class="btn ghost block" data-x="close">Avbryt</button>`);
+  box.querySelector('[data-x="close"]').onclick = close;
+  box.querySelectorAll('[data-team]').forEach(button => button.onclick = async () => {
+    button.classList.add('busy');
+    const ok = await rpc('kubb_admin_set_advancement_slot', {
+      p_destination_grp:grp,
+      p_destination_slot:slotNo,
+      p_team:button.dataset.team || null
+    }, button.dataset.team ? 'Laget er satt inn manuelt' : 'Plassen fylles automatisk');
+    if(ok) close(); else button.classList.remove('busy');
+  });
 }
 
 /* ---------- sluttspill ---------- */

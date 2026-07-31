@@ -22,7 +22,9 @@ const migrations = [
   '20260731160000_remaining_admin_controls.sql',
   '20260731210000_fixed_format_shootouts_and_withdrawals.sql',
   '20260731213000_tiebreak_invalidation.sql',
-  '20260731220000_simple_match_change_queue.sql'
+  '20260731220000_simple_match_change_queue.sql',
+  '20260731225057_advancement_slots_and_admin_override.sql',
+  '20260731225741_clear_withdrawn_advancement_override.sql'
 ];
 
 const CODE = 'ENDRE_MEG';
@@ -40,6 +42,17 @@ const playMatch = async (id, result = 'draw', code = CODE) => {
 const finishStageAsDraws = async stages => {
   const rows = await db.query('select id from public.kubb_matches where stage = any($1::text[]) and status <> $2 order by order_no', [stages, 'finished']);
   for (const row of rows.rows) await playMatch(row.id, 'draw');
+};
+const finishGroupBySeed = async grp => {
+  const rows = await db.query(`
+    select m.id, a.seed seed_a, b.seed seed_b
+      from public.kubb_matches m
+      join public.kubb_teams a on a.id = m.team_a
+      join public.kubb_teams b on b.id = m.team_b
+     where m.stage = 'group' and m.grp = $1 and m.status <> 'finished'
+     order by m.order_no
+  `, [grp]);
+  for (const row of rows.rows) await playMatch(row.id, row.seed_a < row.seed_b ? 'a' : 'b');
 };
 const resolveAllCutoffTies = async stage => {
   const groups = await db.query('select distinct grp from public.kubb_standings where stage = $1 order by grp', [stage]);
@@ -84,12 +97,17 @@ assert(!redrawWorked, 'the public draw was not locked');
 // Strykning fjerner laget, koden og samtlige kamper fra regnskapet.
 const beforeRemoval = await scalar('select count(*)::int n from public.kubb_matches where team_a = $1 or team_b = $1', [teamCode.team_id]);
 assert(beforeRemoval.n === 3, 'a team in a four-team group should have three matches');
+await db.query("select public.kubb_admin_set_advancement_slot($1,'A1',1,$2)", [CODE, teamCode.team_id]);
+let overrideCount = await scalar('select count(*)::int n from public.kubb_advancement_overrides where team_id = $1', [teamCode.team_id]);
+assert(overrideCount.n === 1, 'manual advancement override was not stored');
 const removed = (await db.query('select public.kubb_admin_remove_team($1,$2) value', [CODE, teamCode.team_id])).rows[0].value;
 assert(removed.matches_removed === 3, 'not all team matches were struck');
 const afterRemoval = await scalar('select count(*)::int n from public.kubb_matches where team_a = $1 or team_b = $1', [teamCode.team_id]);
 const removedLogin = await scalar('select public.kubb_login($1) login', [teamCode.code]);
 tournament = await scalar('select planned_matches from public.kubb_tournament where id = 1');
 assert(afterRemoval.n === 0 && !removedLogin.login.ok, 'withdrawn team or code is still active');
+overrideCount = await scalar('select count(*)::int n from public.kubb_advancement_overrides where team_id = $1', [teamCode.team_id]);
+assert(overrideCount.n === 0, 'a withdrawn team remained in a manual advancement slot');
 assert(tournament.planned_matches === 50, `expected 50 matches after a team withdrawal, got ${tournament.planned_matches}`);
 
 // Start en ren 16-lagsturnering og test arrangorkontrollene.
@@ -100,6 +118,13 @@ const regenerated = (await db.query('select public.kubb_admin_regenerate_team_co
 assert(regenerated.code && regenerated.code !== teamCode.code, 'team code was not regenerated');
 await db.query("select public.kubb_admin_settings($1,'Kilkast test',40,2,2)", [CODE]);
 await db.query('select public.kubb_admin_generate_groups($1)', [CODE]);
+
+let advancement = await db.query('select * from public.kubb_advancement_slots order by destination_grp, destination_slot');
+assert(advancement.rows.length === 16 && advancement.rows.every(row => row.placement_status === 'waiting'), 'the four second-stage groups were not prepared as 16 visible waiting slots');
+await finishGroupBySeed('D');
+advancement = await db.query('select * from public.kubb_advancement_slots order by destination_grp, destination_slot');
+assert(advancement.rows.filter(row => row.source_grp === 'D' && row.placement_status === 'automatic' && row.team_id).length === 4, 'a completed first-stage group did not populate its four destinations automatically');
+assert(advancement.rows.filter(row => row.source_grp !== 'D' && row.team_id === null).length === 12, 'unfinished source groups populated too early');
 
 const first = await scalar("select id from public.kubb_matches where stage = 'group' order by order_no limit 1");
 await db.query('select public.kubb_select_court_match($1,$2,$3)', [CODE, 1, first.id]);
@@ -148,6 +173,15 @@ assert(!phaseWorked, 'unresolved cutoff tie did not block the phase');
 await resolveAllCutoffTies('group');
 const rankedByShootout = await db.query("select pos, shootout_rank from public.kubb_standings where stage = 'group' and grp = 'A' order by pos");
 assert(rankedByShootout.rows.every((row, i) => row.shootout_rank === i + 1), 'shootout order did not become standings order');
+advancement = await db.query('select * from public.kubb_advancement_slots order by destination_grp, destination_slot');
+assert(advancement.rows.length === 16 && advancement.rows.every(row => row.placement_status === 'automatic' && row.team_id), 'all 16 automatic advancement slots were not filled after the groups were settled');
+
+const originalA1 = advancement.rows.find(row => row.destination_grp === 'A1' && row.destination_slot === 1);
+const originalA2 = advancement.rows.find(row => row.destination_grp === 'A2' && row.destination_slot === 1);
+await db.query('select public.kubb_admin_set_advancement_slot($1,$2,$3,$4)', [CODE, 'A1', 1, originalA2.team_id]);
+await db.query('select public.kubb_admin_set_advancement_slot($1,$2,$3,$4)', [CODE, 'A2', 1, originalA1.team_id]);
+advancement = await db.query("select destination_grp, destination_slot, team_id, is_manual from public.kubb_advancement_slots where destination_grp in ('A1','A2') and destination_slot = 1 order by destination_grp");
+assert(advancement.rows[0].team_id === originalA2.team_id && advancement.rows[1].team_id === originalA1.team_id && advancement.rows.every(row => row.is_manual), 'the admin could not swap two second-stage slots manually');
 await db.exec('begin');
 await db.query("update public.kubb_matches set result = 'a' where id = (select id from public.kubb_matches where stage = 'group' and grp = 'A' limit 1)");
 const invalidated = await scalar("select count(*)::int n from public.kubb_tiebreaks where stage = 'group' and grp = 'A'");
@@ -155,6 +189,12 @@ assert(invalidated.n === 0, 'a corrected group result did not invalidate the old
 await db.exec('rollback');
 await db.query("select public.kubb_admin_phase_action($1,'close_group')", [CODE]);
 await db.query("select public.kubb_admin_phase_action($1,'start_final_groups')", [CODE]);
+
+const manualPlacementMatches = await scalar(`select
+  count(*) filter (where grp = 'A1' and (team_a = $1 or team_b = $1))::int in_a1,
+  count(*) filter (where grp = 'A2' and (team_a = $2 or team_b = $2))::int in_a2
+  from public.kubb_matches where stage = 'a_group'`, [originalA2.team_id, originalA1.team_id]);
+assert(manualPlacementMatches.in_a1 === 3 && manualPlacementMatches.in_a2 === 3, 'manual advancement overrides were not used to build group-stage matches');
 
 const secondGroups = await db.query("select stage, grp, count(*)::int n from public.kubb_matches where stage in ('a_group','b_group') group by stage,grp order by stage,grp");
 assert(secondGroups.rows.length === 4 && secondGroups.rows.every(row => row.n === 6), 'A1/A2/B1/B2 were not four groups of four');
