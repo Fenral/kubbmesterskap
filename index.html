@@ -376,34 +376,16 @@ tr.stand-click:hover td,tr.stand-click:focus-visible td{background:var(--surface
 .group-board td{padding-top:11px;padding-bottom:11px}
 .group-board tr.leading td:first-child{color:var(--go);font-weight:700}
 .group-board tr.leading td:nth-child(2){font-weight:650}
+.group-board tr.pending td{color:var(--ink-3)}
+.group-board tr.pending td:nth-child(2){font-weight:540}
+.group-team-cell{display:flex;align-items:center;justify-content:space-between;gap:8px;min-width:150px}
+.group-team-cell>span{min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.group-source{display:block;margin-top:2px;color:var(--ink-3);font-size:10.5px;font-weight:480;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.stand-edit{flex:0 0 auto;padding:5px 7px;border:1px solid var(--line-2);border-radius:7px;background:var(--surface);font-size:10.5px;font-weight:620;box-shadow:var(--shadow-1)}
 .group-matches{margin-top:var(--s7)}
 .group-matches-head{display:flex;align-items:baseline;justify-content:space-between;gap:var(--s3);margin:0 0 var(--s3)}
 .group-matches-head h2{font-size:19px;font-weight:640;letter-spacing:-.025em}
 .group-matches-head span{color:var(--ink-3);font:600 11px/1 var(--mono);font-variant-numeric:tabular-nums;white-space:nowrap}
-.advance-board-head{display:flex;align-items:end;justify-content:space-between;gap:var(--s3);margin:var(--s6) 2px var(--s3)}
-.advance-board-head h2{font-size:20px;letter-spacing:-.025em}
-.advance-board-head span{color:var(--ink-3);font:600 11px/1 var(--mono);font-variant-numeric:tabular-nums;white-space:nowrap}
-.advance-grid{display:grid;grid-template-columns:1fr;gap:10px}
-.advance-card{overflow:hidden;border:1px solid var(--line);border-radius:var(--r2);background:var(--surface);box-shadow:var(--shadow-1)}
-.advance-card-head{display:flex;align-items:center;justify-content:space-between;padding:12px var(--s4);background:var(--ink);color:var(--on-ink)}
-.advance-card-head h3{font:680 21px/1 var(--mono);letter-spacing:.01em}
-.advance-card-head span{font-size:11px;font-weight:600;opacity:.68}
-.advance-slots{list-style:none;margin:0;padding:0}
-.advance-slot{position:relative;display:grid;grid-template-columns:26px minmax(0,1fr) auto;align-items:center;gap:10px;min-height:61px;padding:10px 10px 10px var(--s3);border-top:1px solid var(--line)}
-.advance-slot:first-child{border-top:0}
-.advance-slot::before{content:"";position:absolute;left:24px;top:0;bottom:0;width:1px;background:var(--line)}
-.advance-slot:first-child::before{top:50%}.advance-slot:last-child::before{bottom:50%}
-.advance-slot-no{position:relative;z-index:1;display:grid;place-items:center;width:25px;height:25px;border-radius:50%;background:var(--surface-2);border:1px solid var(--line-2);font:650 11px/1 var(--mono)}
-.advance-slot-copy{min-width:0}
-.advance-slot-copy b{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:14px;font-weight:610;letter-spacing:-.012em}
-.advance-slot-copy small{display:block;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--ink-3);font-size:11.5px}
-.advance-slot[data-status="automatic"] .advance-slot-no{background:var(--go-w);border-color:color-mix(in oklch,var(--go) 30%,var(--line));color:var(--go)}
-.advance-slot[data-status="manual"]{background:var(--surface-2)}
-.advance-slot[data-status="manual"] .advance-slot-no{background:var(--ink);border-color:var(--ink);color:var(--on-ink)}
-.advance-slot[data-status="tiebreak"] .advance-slot-no{background:var(--warn-w);border-color:color-mix(in oklch,var(--warn) 35%,var(--line));color:var(--warn)}
-.advance-edit{min-height:32px;padding:0 9px;border:1px solid var(--line-2);border-radius:8px;background:var(--surface);font-size:11.5px;font-weight:610;box-shadow:var(--shadow-1)}
-.advance-note{margin:var(--s3) 2px 0;color:var(--ink-3);font-size:12px;line-height:1.45}
-@media(min-width:600px){.advance-grid{grid-template-columns:1fr 1fr}}
 
 /* ---------------- bracket ---------------- */
 .bracket{
@@ -1055,6 +1037,11 @@ function dismissKeyboard(){
 function go(tab){
   dismissKeyboard();
   if(S.tab === tab) { window.scrollTo({ top:0, behavior: reduced() ? 'auto' : 'smooth' }); return; }
+  if(tab === 'groups' && S.teamId){
+    S.groupView = null;
+    const hasSecondGroup = advancementRows().some(row => row.team_id === S.teamId);
+    S.groupStage = hasSecondGroup && ['group_review','final_groups','semifinal_review','knockout','finished'].includes(S.t.phase) ? 'final_groups' : 'group';
+  }
   S.tab = tab; buildNav(); paint(); window.scrollTo(0,0);
 }
 
@@ -1336,6 +1323,7 @@ function matchRow(m){
   if(m.status === 'live')        chip = `<span class="chip live num" data-tick="${m.id}">--:--</span>`;
   else if(m.status === 'paused') chip = `<span class="chip ready">Pauset</span>`;
   else if(m.status === 'ready')  chip = `<span class="chip ready">Bane ${m.court}</span>`;
+  else if(m.status === 'scheduled') chip = `<span class="chip">Planlagt</span>`;
   else if(done)                  chip = `<span class="chip">${m.result === 'draw' ? 'Uavgjort' : 'Ferdig'}</span>`;
   else                           chip = `<span class="chip">I kø</span>`;
 
@@ -1394,37 +1382,24 @@ function advancementRows(){
     team_id:null, team_name:null, is_manual:false, placement_status:'waiting'
   }));
 }
-function advancementBoard(){
-  const rows = advancementRows();
-  const editable = isAdmin() && ['group','group_review'].includes(S.t.phase);
-  const filled = rows.filter(row => row.team_id).length;
-  const statusCopy = row => {
-    const source = `${row.source_pos}. plass fra gruppe ${row.source_grp}`;
-    if(row.placement_status === 'manual') return [row.team_name || 'Valgt lag', 'Satt manuelt av arrangør'];
-    if(row.placement_status === 'automatic') return [row.team_name || source, `${source} · automatisk`];
-    if(row.placement_status === 'tiebreak') return ['Avventer straffekast', source];
-    if(row.placement_status === 'missing') return ['Plassen må kontrolleres', source];
-    return [source, `Fylles når gruppe ${row.source_grp} er ferdig`];
+function canEditAdvancement(){
+  return isAdmin() && ['group','group_review','final_groups'].includes(S.t.phase) &&
+    !S.matches.some(m => ['a_group','b_group'].includes(m.stage) && ['live','paused','finished'].includes(m.status));
+}
+function advancementDisplayRow(slot){
+  const source = `${slot.source_pos}. plass fra gruppe ${slot.source_grp}`;
+  let name = slot.team_name || source, meta;
+  if(slot.placement_status === 'manual') meta = 'Satt manuelt av arrangør';
+  else if(slot.placement_status === 'automatic') meta = `${source} · automatisk`;
+  else if(slot.placement_status === 'tiebreak'){ name = 'Avventer straffekast'; meta = source; }
+  else if(slot.placement_status === 'missing'){ name = 'Plassen må kontrolleres'; meta = source; }
+  else meta = `Fylles når gruppe ${slot.source_grp} er ferdig`;
+  return {
+    pos:slot.destination_slot, destination_slot:slot.destination_slot,
+    team_id:slot.team_id, name, source_meta:meta, pending:!slot.team_id,
+    played:slot.team_id ? 0 : '–', wins:slot.team_id ? 0 : '–', draws:slot.team_id ? 0 : '–',
+    losses:slot.team_id ? 0 : '–', points:slot.team_id ? 0 : '–', shootout_rank:null
   };
-  const cards = ['A1','A2','B1','B2'].map(grp => {
-    const slots = rows.filter(row => row.destination_grp === grp).sort((a,b) => a.destination_slot - b.destination_slot);
-    return `<article class="advance-card">
-      <header class="advance-card-head"><h3>${grp}</h3><span>${grp.startsWith('A') ? 'A-sporet' : 'B-sporet'}</span></header>
-      <ol class="advance-slots">${slots.map(row => {
-        const [title, meta] = statusCopy(row);
-        return `<li class="advance-slot" data-status="${esc(row.placement_status)}">
-          <span class="advance-slot-no">${row.destination_slot}</span>
-          <div class="advance-slot-copy"><b>${esc(title)}</b><small>${esc(meta)}</small></div>
-          ${editable ? `<button type="button" class="advance-edit" data-do="advance" data-id="${grp}|${row.destination_slot}" aria-label="Endre plass ${row.destination_slot} i ${grp}">Endre</button>` : ''}
-        </li>`;
-      }).join('')}</ol>
-    </article>`;
-  }).join('');
-  return `<section aria-labelledby="advance-title">
-    <header class="advance-board-head"><h2 id="advance-title">Gruppene i runde 2</h2><span>${filled}/16 plassert</span></header>
-    <div class="advance-grid">${cards}</div>
-    <p class="advance-note">Hvert lag fylles inn så snart kildegruppen er ferdig og eventuelle straffekast er avgjort.${editable ? ' Arrangøren kan bruke Endre som manuell sikring.' : ''}</p>
-  </section>`;
 }
 function viewGroups(){
   if(!S.standings.length) return blank('Ingen lag ennå',
@@ -1435,21 +1410,28 @@ function viewGroups(){
     <button type="button" data-do="groupStage" data-id="group" aria-pressed="${!second}">Gruppespill 1</button>
     <button type="button" data-do="groupStage" data-id="final_groups" aria-pressed="${second}">Gruppespill 2</button>
   </div>`;
-  const groups = [...new Set(S.standings
-    .filter(s => second ? ['a_group','b_group'].includes(s.stage) : (s.stage || 'group') === 'group')
-    .map(s => `${s.stage || 'group'}|${s.grp}`))].sort((a,b) => a.localeCompare(b, 'no', { numeric:true }));
-  const board = second ? advancementBoard() : '';
-  if(!groups.length) return stageSwitch + board;
-  const selected = groups.includes(S.groupView) ? S.groupView : groups[0];
+  const groups = second
+    ? ['a_group|A1','a_group|A2','b_group|B1','b_group|B2']
+    : [...new Set(S.standings.filter(s => (s.stage || 'group') === 'group').map(s => `group|${s.grp}`))]
+        .sort((a,b) => a.localeCompare(b, 'no', { numeric:true }));
+  if(!groups.length) return stageSwitch + blank('Ingen grupper ennå', 'Gruppene vises her når trekningen er gjennomført.');
+  const own = second
+    ? (() => { const slot = advancementRows().find(row => row.team_id === S.teamId); return slot ? `${slot.destination_grp.startsWith('A') ? 'a_group' : 'b_group'}|${slot.destination_grp}` : null; })()
+    : (() => { const row = S.standings.find(s => (s.stage || 'group') === 'group' && s.team_id === S.teamId); return row ? `group|${row.grp}` : null; })();
+  const selected = groups.includes(S.groupView) ? S.groupView : groups.includes(own) ? own : groups[0];
   S.groupView = selected;
   const [stage, g] = selected.split('|');
-  const rows = S.standings
+  const standingsRows = S.standings
     .filter(s => (s.stage || 'group') === stage && s.grp === g)
     .sort((x,y) => x.pos - y.pos);
   const matches = S.matches
     .filter(m => m.stage === stage && String(m.grp) === String(g))
     .sort((a,b) => (a.round || 0) - (b.round || 0) || (a.order_no || 0) - (b.order_no || 0));
   const finished = matches.filter(m => m.status === 'finished').length;
+  const groupStarted = matches.some(m => ['live','paused','finished'].includes(m.status));
+  const slots = second ? advancementRows().filter(row => row.destination_grp === g).sort((a,b) => a.destination_slot - b.destination_slot) : [];
+  const rows = second && !groupStarted ? slots.map(advancementDisplayRow) : standingsRows;
+  const editable = second && canEditAdvancement();
   const groupLabel = stage === 'group' ? `Gruppe ${g}` : g;
   const tabLabel = key => {
     const [tabStage, tabGroup] = key.split('|');
@@ -1457,25 +1439,24 @@ function viewGroups(){
   };
   return `
     ${stageSwitch}
-    ${board}
     <div class="group-tabs" role="navigation" aria-label="Velg gruppe">
       ${groups.map(key => `<button type="button" data-do="group" data-id="${esc(key)}"${key === selected ? ' aria-current="page"' : ''}>${esc(tabLabel(key))}</button>`).join('')}
     </div>
     <section aria-labelledby="group-title">
       <header class="group-header">
-        <div><div class="eyebrow">${stage === 'group' ? 'Gruppespill 1' : `Gruppespill 2 · ${stage === 'a_group' ? 'A-sporet' : 'B-sporet'}`} <small>${rows.length} lag</small></div><h2 id="group-title">${esc(groupLabel)}</h2></div>
-        <span class="group-count">${finished}/${matches.length} spilt</span>
+        <div><div class="eyebrow">${stage === 'group' ? 'Gruppespill 1' : `Gruppespill 2 · ${stage === 'a_group' ? 'A-sporet' : 'B-sporet'}`} <small>${rows.filter(row => row.team_id).length} lag</small></div><h2 id="group-title">${esc(groupLabel)}</h2></div>
+        <span class="group-count">${finished}/${second ? 6 : matches.length} spilt</span>
       </header>
       <div class="group-board"><div class="tw"><table>
         <caption>Stillingen i ${esc(groupLabel)}</caption>
         <thead><tr><th>#</th><th>Lag</th><th>K</th><th>S</th><th>U</th><th>T</th><th>P</th></tr></thead>
-        <tbody>${rows.map(r => `<tr class="${r.pos <= 2 ? 'leading' : ''} ${r.team_id === S.teamId ? 'self' : ''}">
-          <td>${r.pos}</td><td>${esc(r.name)}${r.shootout_rank ? ` <small title="Plassering etter straffekast">SK${r.shootout_rank}</small>` : ''}</td><td>${r.played}</td><td>${r.wins}</td><td>${r.draws}</td><td>${r.losses}</td><td>${r.points}</td>
+        <tbody>${rows.map(r => `<tr class="${!r.pending && r.pos <= 2 ? 'leading' : ''} ${r.pending ? 'pending' : ''} ${r.team_id === S.teamId ? 'self' : ''}">
+          <td>${r.pos}</td><td><div class="group-team-cell"><span>${esc(r.name)}${r.shootout_rank ? ` <small title="Plassering etter straffekast">SK${r.shootout_rank}</small>` : ''}</span>${editable && r.destination_slot ? `<button type="button" class="stand-edit" data-do="advance" data-id="${g}|${r.destination_slot}" aria-label="Endre plass ${r.destination_slot} i ${g}">Endre</button>` : ''}</div>${r.source_meta ? `<small class="group-source">${esc(r.source_meta)}</small>` : ''}</td><td>${r.played}</td><td>${r.wins}</td><td>${r.draws}</td><td>${r.losses}</td><td>${r.points}</td>
         </tr>`).join('')}</tbody></table></div></div>
     </section>
     <section class="group-matches" aria-labelledby="group-matches-title">
       <header class="group-matches-head"><h2 id="group-matches-title">Kamper i ${esc(groupLabel)}</h2><span>${matches.length} kamper</span></header>
-      ${matches.length ? `<div class="list">${matches.map(matchRow).join('')}</div>` : blank('Ingen kamper satt opp', 'Kampene for denne gruppen vises her så snart trekningen er gjennomført.')}
+      ${matches.length ? `<div class="list">${matches.map(matchRow).join('')}</div>` : blank('Venter på fire lag', second ? 'De seks kampene settes opp automatisk når alle fire plassene i puljen er fylt.' : 'Kampene vises her så snart trekningen er gjennomført.')}
     </section>
     <p class="legend">Rangering: poeng → innbyrdes → straffekast. K kamper · S seire · U uavgjort · T tap · P poeng. ${stage === 'group' ? 'De to beste går til A-sporet, de to andre til B-sporet.' : 'De to beste går direkte til semifinalene.'}</p>`;
 }
@@ -1499,12 +1480,12 @@ function sheetAdvancementSlot(id){
   const [grp, slotText] = id.split('|');
   const slotNo = Number(slotText);
   const slot = advancementRows().find(row => row.destination_grp === grp && Number(row.destination_slot) === slotNo);
-  if(!slot || !['group','group_review'].includes(S.t.phase)) return;
+  if(!slot || !canEditAdvancement()) return;
   const source = `${slot.source_pos}. plass fra gruppe ${slot.source_grp}`;
   const teams = S.teams.slice().sort((a,b) => a.name.localeCompare(b.name, 'no'));
   const { box, close } = sheet(`
     <h2>Plass ${slotNo} i ${esc(grp)}</h2>
-    <p class="lede">Automatisk plass er ${esc(source)}. Bruk bare manuell plassering hvis noe må korrigeres.</p>
+    <p class="lede">Automatisk plass er ${esc(source)}. Hvis du bytter lag, bygges de seks kampene i puljen på nytt.</p>
     <button type="button" class="choice ${slot.is_manual ? '' : 'accent'}" data-team="">
       <span class="k">A</span><span><b>Bruk automatisk plassering</b><small>${esc(source)}</small></span>
     </button>
@@ -1523,7 +1504,7 @@ function sheetAdvancementSlot(id){
       p_destination_grp:grp,
       p_destination_slot:slotNo,
       p_team:button.dataset.team || null
-    }, button.dataset.team ? 'Laget er satt inn manuelt' : 'Plassen fylles automatisk');
+    }, button.dataset.team ? 'Lag og kampoppsett er oppdatert' : 'Automatisk plass og kampoppsett er gjenopprettet');
     if(ok) close(); else button.classList.remove('busy');
   });
 }
@@ -1751,7 +1732,7 @@ function askSignOut(){
 function confirmPhase(action){
   const copy = {
     close_group:['Avslutt første gruppespill?', 'Tabellene låses slik at A- og B-lagene kan kontrolleres.', 'Avslutt gruppespillet'],
-    start_final_groups:['Start A1/A2 og B1/B2?', 'Det opprettes fire nye puljer med fire lag og seks kamper i hver.', 'Start gruppespillet'],
+    start_final_groups:['Start A1/A2 og B1/B2?', 'De 24 planlagte kampene legges nå inn i banekøen.', 'Start gruppespillet'],
     review_semifinalists:['Kontroller semifinalistene?', 'A- og B-tabellene låses før semifinalistene vises.', 'Lås tabellene'],
     start_knockout:['Start knockout?', 'De to beste fra hver A- og B-pulje krysses i semifinalene.', 'Start knockout'],
     finish_tournament:['Avslutt turneringen?', 'Alle resultater låses og turneringen markeres som ferdig.', 'Avslutt turneringen']

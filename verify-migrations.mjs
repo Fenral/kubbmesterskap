@@ -24,7 +24,8 @@ const migrations = [
   '20260731213000_tiebreak_invalidation.sql',
   '20260731220000_simple_match_change_queue.sql',
   '20260731225057_advancement_slots_and_admin_override.sql',
-  '20260731225741_clear_withdrawn_advancement_override.sql'
+  '20260731225741_clear_withdrawn_advancement_override.sql',
+  '20260731231654_incremental_final_group_fixtures.sql'
 ];
 
 const CODE = 'ENDRE_MEG';
@@ -175,6 +176,8 @@ const rankedByShootout = await db.query("select pos, shootout_rank from public.k
 assert(rankedByShootout.rows.every((row, i) => row.shootout_rank === i + 1), 'shootout order did not become standings order');
 advancement = await db.query('select * from public.kubb_advancement_slots order by destination_grp, destination_slot');
 assert(advancement.rows.length === 16 && advancement.rows.every(row => row.placement_status === 'automatic' && row.team_id), 'all 16 automatic advancement slots were not filled after the groups were settled');
+let scheduledSecondGroups = await scalar("select count(*)::int n, count(*) filter (where status = 'scheduled')::int scheduled from public.kubb_matches where stage in ('a_group','b_group')");
+assert(scheduledSecondGroups.n === 24 && scheduledSecondGroups.scheduled === 24, 'filled second-stage groups did not create their six scheduled matches automatically');
 
 const originalA1 = advancement.rows.find(row => row.destination_grp === 'A1' && row.destination_slot === 1);
 const originalA2 = advancement.rows.find(row => row.destination_grp === 'A2' && row.destination_slot === 1);
@@ -182,6 +185,8 @@ await db.query('select public.kubb_admin_set_advancement_slot($1,$2,$3,$4)', [CO
 await db.query('select public.kubb_admin_set_advancement_slot($1,$2,$3,$4)', [CODE, 'A2', 1, originalA1.team_id]);
 advancement = await db.query("select destination_grp, destination_slot, team_id, is_manual from public.kubb_advancement_slots where destination_grp in ('A1','A2') and destination_slot = 1 order by destination_grp");
 assert(advancement.rows[0].team_id === originalA2.team_id && advancement.rows[1].team_id === originalA1.team_id && advancement.rows.every(row => row.is_manual), 'the admin could not swap two second-stage slots manually');
+scheduledSecondGroups = await scalar("select count(*)::int n, count(*) filter (where status = 'scheduled')::int scheduled from public.kubb_matches where stage in ('a_group','b_group')");
+assert(scheduledSecondGroups.n === 24 && scheduledSecondGroups.scheduled === 24, 'manual slot changes did not rebuild a complete scheduled fixture list');
 await db.exec('begin');
 await db.query("update public.kubb_matches set result = 'a' where id = (select id from public.kubb_matches where stage = 'group' and grp = 'A' limit 1)");
 const invalidated = await scalar("select count(*)::int n from public.kubb_tiebreaks where stage = 'group' and grp = 'A'");
@@ -195,6 +200,12 @@ const manualPlacementMatches = await scalar(`select
   count(*) filter (where grp = 'A2' and (team_a = $2 or team_b = $2))::int in_a2
   from public.kubb_matches where stage = 'a_group'`, [originalA2.team_id, originalA1.team_id]);
 assert(manualPlacementMatches.in_a1 === 3 && manualPlacementMatches.in_a2 === 3, 'manual advancement overrides were not used to build group-stage matches');
+const firstSecondStage = await scalar("select id from public.kubb_matches where stage = 'a_group' order by order_no limit 1");
+await db.query('select public.kubb_select_court_match($1,$2,$3)', [CODE, 1, firstSecondStage.id]);
+await db.query('select public.kubb_start_match($1,$2)', [CODE, firstSecondStage.id]);
+let lateOverrideWorked = false;
+try { await db.query('select public.kubb_admin_set_advancement_slot($1,$2,$3,$4)', [CODE, 'A1', 2, originalA1.team_id]); lateOverrideWorked = true; } catch (_) {}
+assert(!lateOverrideWorked, 'an advancement override was accepted after second-stage play began');
 
 const secondGroups = await db.query("select stage, grp, count(*)::int n from public.kubb_matches where stage in ('a_group','b_group') group by stage,grp order by stage,grp");
 assert(secondGroups.rows.length === 4 && secondGroups.rows.every(row => row.n === 6), 'A1/A2/B1/B2 were not four groups of four');

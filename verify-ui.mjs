@@ -74,6 +74,20 @@ const advancement = advancementLayout.map(([destination_grp,destination_slot,sou
   team_id:null, team_name:null, is_manual:false, source_complete:false,
   source_needs_tiebreak:false, placement_status:'waiting'
 }));
+const a2Members = [teams[0], teams[4], teams[8], teams[12]];
+advancement.filter(row => row.destination_grp === 'A2').forEach((row, index) => Object.assign(row, {
+  team_id:a2Members[index].id, team_name:a2Members[index].name,
+  is_manual:false, source_complete:true, placement_status:'automatic'
+}));
+[
+  [0,1,1], [2,3,1], [0,2,2], [1,3,2], [0,3,3], [1,2,3]
+].forEach(([a,b,round], index) => {
+  const match = makeMatch(16 + index, null, 'scheduled',
+    teams.indexOf(a2Members[a]), teams.indexOf(a2Members[b]), null,
+    `A2-pulje · runde ${round}`);
+  Object.assign(match, { stage:'a_group', grp:'A2', round, order_no:200000 + index });
+  matches.push(match);
+});
 const audit = [
   { id:9, action:'pause', label:'Pauset kamp', actor_name:'Kubbkongene', created_at:new Date(now - 120000).toISOString(), can_undo:true },
   { id:8, action:'start', label:'Startet kamp', actor_name:'Kubbkongene', created_at:new Date(now - 480000).toISOString(), can_undo:false }
@@ -104,7 +118,14 @@ await page.route('https://rknxxzxywmfkwsvojfiv.supabase.co/**', route => {
     const body = request.postDataJSON();
     const slot = advancement.find(row => row.destination_grp === body.p_destination_grp && row.destination_slot === Number(body.p_destination_slot));
     const selected = teams.find(team => team.id === body.p_team);
+    const previousTeam = slot?.team_id;
     if (slot) Object.assign(slot, selected ? { team_id:selected.id, team_name:selected.name, is_manual:true, placement_status:'manual' } : { team_id:null, team_name:null, is_manual:false, placement_status:'waiting' });
+    if (slot && selected && previousTeam) matches
+      .filter(match => match.grp === slot.destination_grp && ['a_group','b_group'].includes(match.stage))
+      .forEach(match => {
+        if (match.team_a === previousTeam) match.team_a = selected.id;
+        if (match.team_b === previousTeam) match.team_b = selected.id;
+      });
     return send({ ok:true });
   }
   if (path.endsWith('/kubb_tournament')) return send({ id:1, name:'Kilkast test', match_seconds:2400, num_courts:5, phase:'group', planned_matches:56, qualifiers_per_group:2, drawn_at:new Date(now - 3600000).toISOString(), completed_at:null, updated_at:new Date(now).toISOString() });
@@ -155,17 +176,22 @@ try {
   await page.getByRole('button', { name:'Gruppespill', exact:true }).click();
   if (!await page.getByRole('button', { name:'Gruppespill 1', exact:true }).count() || !await page.getByRole('button', { name:'Gruppespill 2', exact:true }).count()) throw new Error('Valget mellom de to gruppespillene mangler');
   await page.getByRole('button', { name:'Gruppespill 2', exact:true }).click();
-  const secondGroups = await page.locator('.advance-card .advance-card-head h3').allTextContents();
+  const secondGroups = await page.locator('.group-tabs button').allTextContents();
   if (secondGroups.join(',') !== 'A1,A2,B1,B2') throw new Error(`Gruppespill 2 viser ikke alle fire puljene: ${secondGroups.join(',')}`);
-  if (await page.locator('.advance-slot').count() !== 16) throw new Error('Gruppespill 2 viser ikke alle 16 plassene');
-  const a1Sources = await page.locator('.advance-card').filter({ has:page.getByRole('heading', { name:'A1', exact:true }) }).locator('.advance-slot-copy b').allTextContents();
-  if (a1Sources.join(',') !== '1. plass fra gruppe A,2. plass fra gruppe B,1. plass fra gruppe C,2. plass fra gruppe D') throw new Error(`A1 har feil fordelingsmatrise: ${a1Sources.join(',')}`);
-  await page.getByRole('button', { name:'Endre plass 1 i A1', exact:true }).click();
+  if (await page.locator('.group-tabs button[aria-current="page"]').textContent() !== 'A2') throw new Error('Eget lag sin pulje åpnes ikke automatisk i gruppespill 2');
+  if (await page.locator('#group-title').textContent() !== 'A2') throw new Error('Gruppespill 2 bruker ikke samme gruppevisning som gruppespill 1');
+  if (await page.locator('.group-board tbody tr').count() !== 4) throw new Error('Valgt pulje viser ikke alle fire plassene');
+  if (await page.locator('.group-board').getByText('2. plass fra gruppe A · automatisk', { exact:true }).count() !== 1) throw new Error('Automatisk kildeplass vises ikke i tabellen');
+  if (await page.getByRole('button', { name:/Endre plass .* i A2/ }).count() !== 4) throw new Error('Arrangøren kan ikke endre alle plassene i puljen');
+  if (await page.locator('.group-matches .mrow').count() !== 6 || await page.locator('.group-matches .chip').filter({ hasText:'Planlagt' }).count() !== 6) throw new Error('En full pulje viser ikke seks automatisk planlagte kamper');
+  await page.getByRole('button', { name:'Endre plass 1 i A2', exact:true }).click();
   if (await page.locator('.sheet [data-team]').count() !== 17) throw new Error('Arrangøren får ikke velge automatisk plassering eller alle 16 lag');
   await page.locator('.sheet [data-team]').filter({ hasText:'Furu Fighters' }).click();
   await page.locator('.sheet').waitFor({ state:'detached' });
-  const manualSlot = page.locator('.advance-card').filter({ has:page.getByRole('heading', { name:'A1', exact:true }) }).locator('.advance-slot').first();
-  if (!await manualSlot.getByText('Furu Fighters', { exact:true }).count() || await manualSlot.getAttribute('data-status') !== 'manual') throw new Error('Manuell reserveplassering vises ikke i puljen');
+  const firstSlot = page.locator('.group-board tbody tr').first();
+  if (!await firstSlot.getByText('Furu Fighters', { exact:true }).count() || !await firstSlot.getByText('Satt manuelt av arrangør', { exact:true }).count()) throw new Error('Manuell reserveplassering vises ikke i tabellen');
+  const rebuiltMatches = await page.locator('.group-matches .mrow .side b').allTextContents();
+  if (!rebuiltMatches.includes('Furu Fighters') || rebuiltMatches.includes('Kubbkongene')) throw new Error('Kampoppsettet ble ikke oppdatert etter lagbyttet');
 
   await page.getByRole('button', { name:'Knockout', exact:true }).click();
   if (!await page.getByRole('button', { name:'A-sluttspill', exact:true }).count() || !await page.getByRole('button', { name:'B-sluttspill', exact:true }).count()) throw new Error('A/B-valget i sluttspillet mangler på mobil');
