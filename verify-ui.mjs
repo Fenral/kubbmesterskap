@@ -12,7 +12,7 @@ const now = Date.now();
 const names = ['Kubbkongene','Furu Fighters','Plankepiratene','Rullesteinene','Kast & Kubb','Treffsikre','Kongelaget','Vikings','Kubbkameratene','Pinnekasterne','Gressgjengen','Parklaget','Kubbklubben','Sommerkast','Kongen står','Siste pinne'];
 const teams = names.map((name, i) => ({
   id:`00000000-0000-4000-8000-${String(i + 1).padStart(12, '0')}`,
-  name, grp:String.fromCharCode(65 + Math.floor(i / 4)), seed:i + 1
+  name, grp:String.fromCharCode(65 + Math.floor(i / 4)), seed:i + 1, withdrawn_at:null
 }));
 const matchId = n => `10000000-0000-4000-8000-${String(n).padStart(12, '0')}`;
 const makeMatch = (n, court, status, a, b, minutes, label, readyMinutes = 0) => ({
@@ -35,10 +35,14 @@ const matches = [
   makeMatch(7, null, 'queued', 12, 13, null, 'Pulje D · runde 1'),
   makeMatch(8, null, 'queued', 14, 15, null, 'Pulje D · runde 1')
 ];
+matches[1].stage = 'a_sf';
+matches[1].grp = null;
+matches[1].label = 'A-sluttspill · Semifinale 1';
 const standings = teams.map((team, i) => ({
   stage:'group', grp:team.grp, team_id:team.id, name:team.name,
   played:i < 8 ? 2 : 1, wins:i % 3, draws:i % 2, losses:0,
-  kubb_for:0, kubb_against:0, kubb_diff:0, points:(i % 3) * 3 + (i % 2), pos:(i % 4) + 1
+  kubb_for:0, kubb_against:0, kubb_diff:0, points:(i % 3) * 3 + (i % 2),
+  head_to_head_points:0, shootout_rank:null, pos:(i % 4) + 1
 }));
 const audit = [
   { id:9, action:'pause', label:'Pauset kamp', actor_name:'Kubbkongene', created_at:new Date(now - 120000).toISOString(), can_undo:true },
@@ -66,7 +70,7 @@ await page.route('https://rknxxzxywmfkwsvojfiv.supabase.co/**', route => {
   if (path.endsWith('/rpc/kubb_now')) return send(new Date(now).toISOString());
   if (path.endsWith('/rpc/kubb_admin_recent_actions')) return send(audit);
   if (path.endsWith('/rpc/kubb_finish_expired_matches')) return send(0);
-  if (path.endsWith('/kubb_tournament')) return send({ id:1, name:'Kilkast test', match_seconds:2400, num_courts:5, phase:'group', qualifiers_per_group:2, drawn_at:new Date(now - 3600000).toISOString(), completed_at:null, updated_at:new Date(now).toISOString() });
+  if (path.endsWith('/kubb_tournament')) return send({ id:1, name:'Kilkast test', match_seconds:2400, num_courts:5, phase:'group', planned_matches:56, qualifiers_per_group:2, drawn_at:new Date(now - 3600000).toISOString(), completed_at:null, updated_at:new Date(now).toISOString() });
   if (path.endsWith('/kubb_teams')) return send(teams);
   if (path.endsWith('/kubb_matches')) return send(matches);
   if (path.endsWith('/kubb_standings')) return send(standings);
@@ -86,15 +90,20 @@ try {
   if (!await page.locator('.turn-call').getByText(/Dere spiller på bane 1/).count()) throw new Error('Vedvarende banevarsel mangler');
   if (await page.getByRole('button', { name:'+5 min', exact:true }).count() !== 4) throw new Error('Ekstra tid mangler på pågående kamper');
   if (!await page.getByRole('button', { name:'Flytt / endre', exact:true }).count()) throw new Error('Flytting av en klar kamp mangler');
+  await page.locator(`#c-${matchId(2)}`).getByRole('button', { name:'Avslutt', exact:true }).click();
+  if (!await page.locator('.sheet').getByText(/Straffekast · velg vinner/).count()) throw new Error('Utløpt knockoutkamp viser ikke straffekast');
+  if (await page.locator('.sheet').getByRole('button', { name:/Uavgjort/ }).count()) throw new Error('Knockoutkamp kan registreres uavgjort');
+  await page.locator('.sheet').getByRole('button', { name:'Avbryt' }).click();
 
   await page.getByRole('button', { name:'Arrangør' }).click();
   const adminText = (await page.locator('#view').innerText()).replace(/\s+/g, ' ');
-  if (!adminText.includes('0/88') || !adminText.includes('0%')) throw new Error('Stabil fremdrift for 16 lag mangler');
+  if (!adminText.includes('0/56') || !adminText.includes('0%')) throw new Error('Fast fremdrift for 56 kamper mangler');
   if (!adminText.includes('Pauset kamp') || !adminText.includes('Kubbkongene')) throw new Error('Revisjonsloggen vises ikke');
   if (!await page.getByRole('button', { name:'Avslutt første gruppespill' }).isDisabled()) throw new Error('Faseovergang kan brukes før kampene er ferdige');
   if (adminText.includes('Trekk grupper på nytt')) throw new Error('En offentlig trekning kan fortsatt kjøres på nytt');
   await page.getByRole('button', { name:/Lagstatus og ventetid/ }).click();
   if (await page.locator('.status-row').count() !== 16) throw new Error('Lagstatus viser ikke alle 16 lag');
+  if (await page.getByRole('button', { name:'Stryk lag', exact:true }).count() !== 16) throw new Error('Arrangøren kan ikke stryke hvert lag');
   if (!await page.locator('.sheet').getByText(/Spiller på bane 1/).count()) throw new Error('Lagstatus viser ikke hvem som spiller');
   await page.locator('.sheet').getByRole('button', { name:'Lukk' }).click();
 

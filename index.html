@@ -474,6 +474,9 @@ tr.stand-click:hover td,tr.stand-click:focus-visible td{background:var(--surface
 .qualifier-list strong{display:block;margin-bottom:5px;font:700 11px/1 var(--mono);letter-spacing:.06em}
 .qualifier-list span{display:block;padding:3px 0;font-size:12.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .phase-note{margin:0 0 var(--s4);font-size:12.5px;color:var(--ink-2)}
+.tiebreak-list{display:grid;gap:8px;margin:0 0 var(--s4)}
+.tiebreak-call{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 11px;border:1px solid var(--warn);border-radius:var(--r1);background:var(--warn-w)}
+.tiebreak-call span{min-width:0}.tiebreak-call b{display:block;font-size:13px}.tiebreak-call small{display:block;margin-top:2px;color:var(--ink-2);font-size:11.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .activity{display:grid;gap:0;border:1px solid var(--line);border-radius:var(--r2);overflow:hidden;background:var(--surface)}
 .activity-row{display:grid;grid-template-columns:1fr auto;gap:4px 12px;padding:11px var(--s4);border-bottom:1px solid var(--line)}
 .activity-row:last-child{border-bottom:0}.activity-row b{font-size:13.5px;font-weight:580}.activity-row time{font:520 11px/1.5 var(--mono);color:var(--ink-3)}.activity-row small{grid-column:1/-1;font-size:11.5px;color:var(--ink-3)}
@@ -535,10 +538,11 @@ tr.stand-click:hover td,tr.stand-click:focus-visible td{background:var(--surface
 .key b{display:block;font-size:13.5px;font-weight:560;margin:1px 0 4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;letter-spacing:-.012em}
 .key i{font-style:normal;font-family:var(--mono);font-size:21px;font-weight:640;letter-spacing:.1em}
 .key-foot{display:flex;align-items:end;justify-content:space-between;gap:8px}.key-foot .btn{padding:6px 8px;min-height:30px;font-size:11.5px}
-.status-list{display:grid;gap:8px}.status-row{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:11px;padding:12px;background:var(--surface);border:1px solid var(--line);border-radius:var(--r1)}
+.status-list{display:grid;gap:8px}.status-row{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:11px;padding:12px;background:var(--surface);border:1px solid var(--line);border-radius:var(--r1)}
 .status-dot{width:10px;height:10px;border-radius:50%;background:var(--line-2);box-shadow:0 0 0 4px var(--surface-2)}
 .status-dot[data-state="live"],.status-dot[data-state="ready"]{background:var(--go);box-shadow:0 0 0 4px var(--go-w)}.status-dot[data-state="paused"]{background:var(--warn);box-shadow:0 0 0 4px var(--warn-w)}
-.status-row b{display:block;font-size:14px;font-weight:590}.status-row small{display:block;margin-top:2px;color:var(--ink-3);font-size:11.5px}.status-row>span:last-child{text-align:right;font-size:12px;font-weight:570;color:var(--ink-2)}
+.status-row b{display:block;font-size:14px;font-weight:590}.status-row small{display:block;margin-top:2px;color:var(--ink-3);font-size:11.5px}.status-action{display:grid;justify-items:end;gap:5px}.status-action>span{text-align:right;font-size:12px;font-weight:570;color:var(--ink-2)}
+.shootout-picks{display:grid;gap:8px;margin-bottom:var(--s4)}.shootout-picks .choice{margin:0}.shootout-picks .choice[data-picked="true"]{border-color:var(--go);background:var(--go-w)}
 .impact{margin:0 0 var(--s4);padding:12px;border:1px solid var(--warn);border-radius:var(--r1);background:var(--warn-w)}.impact b{display:block;font-size:13.5px}.impact p{margin:4px 0 0;font-size:12px;line-height:1.45;color:var(--ink-2)}
 
 /* nedtelling */
@@ -713,19 +717,10 @@ function elapsed(m){
 }
 const matchTotal = m => S.t.match_seconds + (m.extra_seconds || 0);
 const left = m => matchTotal(m) - elapsed(m);
-const choose2 = n => n > 1 ? n * (n - 1) / 2 : 0;
 function plannedMatchTotal(){
+  if(Number(S.t.planned_matches) > 0) return Number(S.t.planned_matches);
   const n = S.teams.length;
-  if(n < 12) return S.matches.length;
-  let first;
-  if(S.t.phase === 'setup'){
-    const base = Math.floor(n / 4), extra = n % 4;
-    first = extra * choose2(base + 1) + (4 - extra) * choose2(base);
-  } else {
-    const sizes = Object.values(S.teams.reduce((all, t) => ((all[t.grp] = (all[t.grp] || 0) + 1), all), {}));
-    first = sizes.reduce((sum, size) => sum + choose2(size), 0);
-  }
-  return first + choose2(8) + choose2(n - 8) + 8;
+  return n === 16 ? 56 : S.matches.length;
 }
 function progressSummary(){
   const total = plannedMatchTotal();
@@ -810,7 +805,7 @@ async function pullAll(){
   ]);
   if(c.data) S.offset = Date.parse(c.data) - Date.now();
   if(t.data) S.t = t.data;
-  S.teams = tm.data || [];
+  S.teams = (tm.data || []).filter(team => !team.withdrawn_at);
   S.matches = mt.data || [];
   S.standings = st.data || [];
   if(isAdmin() && S.code){
@@ -1052,6 +1047,7 @@ function wire(){
       reopen:  () => isAdmin() && confirmReopen(id),
       manageReady: () => isAdmin() && sheetManageReadyMatch(id),
       phase:   () => isAdmin() && confirmPhase(n.dataset.action),
+      tiebreak:() => isAdmin() && sheetTiebreak(n.dataset.stage, n.dataset.group),
       undo:    () => isAdmin() && confirmUndo(),
       choose:  () => isAdmin() && sheetChooseCourt(Number(n.dataset.court)),
       notify:  () => enableNotifications(),
@@ -1065,7 +1061,7 @@ function wire(){
       teams:   () => sheetTeams(),
       setup:   () => sheetSetup(),
       begin:   () => ask('Trekk grupper?',
-                  'Lagene trekkes tilfeldig i fire puljer. A- og B-sluttspilltrærne blir synlige med én gang.',
+                  'De 16 lagene trekkes tilfeldig i fire puljer med fire lag. A- og B-trærne blir synlige med én gang.',
                   'Trekk grupper', () => rpc('kubb_admin_generate_groups', {}, 'Puljene er trukket — gruppespillet og sluttspilltrærne er klare')),
       wipe:    () => confirmFullReset(),
       out:     () => askSignOut()
@@ -1353,28 +1349,15 @@ function viewGroups(){
       <div class="group-board"><div class="tw"><table>
         <caption>Stillingen i ${esc(groupLabel)}</caption>
         <thead><tr><th>#</th><th>Lag</th><th>K</th><th>S</th><th>U</th><th>T</th><th>P</th></tr></thead>
-        <tbody>${rows.map(r => `<tr class="${stage === 'group' && r.pos <= 2 ? 'leading' : ''} ${r.team_id === S.teamId ? 'self' : ''}">
-          <td>${r.pos}</td><td>${esc(r.name)}</td><td>${r.played}</td><td>${r.wins}</td><td>${r.draws}</td><td>${r.losses}</td><td>${r.points}</td>
+        <tbody>${rows.map(r => `<tr class="${r.pos <= 2 ? 'leading' : ''} ${r.team_id === S.teamId ? 'self' : ''}">
+          <td>${r.pos}</td><td>${esc(r.name)}${r.shootout_rank ? ` <small title="Plassering etter straffekast">SK${r.shootout_rank}</small>` : ''}</td><td>${r.played}</td><td>${r.wins}</td><td>${r.draws}</td><td>${r.losses}</td><td>${r.points}</td>
         </tr>`).join('')}</tbody></table></div></div>
     </section>
     <section class="group-matches" aria-labelledby="group-matches-title">
       <header class="group-matches-head"><h2 id="group-matches-title">Kamper i ${esc(groupLabel)}</h2><span>${matches.length} kamper</span></header>
       ${matches.length ? `<div class="list">${matches.map(matchRow).join('')}</div>` : blank('Ingen kamper satt opp', 'Kampene for denne gruppen vises her så snart trekningen er gjennomført.')}
     </section>
-    <p class="legend">K kamper · S seire · U uavgjort · T tap · P poeng. De to beste fra hver første pulje går til A-puljen; resten går til B-puljen.</p>`;
-  let h = '';
-  groups.forEach(key => {
-    const [stage, g] = key.split('|');
-    const rows = S.standings.filter(s => (s.stage || 'group') === stage && s.grp === g).sort((x,y) => x.pos - y.pos);
-    h += `<div class="eyebrow">${esc(stageName(stage))} · pulje ${esc(g)} <small>${rows.length} lag</small></div>
-      <div class="panel pad"><div class="tw"><table>
-        <thead><tr><th>#</th><th>Lag</th><th>K</th><th>S</th><th>U</th><th>T</th><th>P</th></tr></thead>
-        <tbody>${rows.map(r => `<tr class="stand-click ${stage === 'group' && r.pos <= 2 ? 'through' : ''} ${r.team_id === S.teamId ? 'self' : ''}" data-do="teamMatches" data-id="${r.team_id}" role="button" tabindex="0" aria-label="Se kamper for ${esc(r.name)}">
-          <td>${r.pos}</td><td>${esc(r.name)}</td><td>${r.played}</td><td>${r.wins}</td><td>${r.draws}</td><td>${r.losses}</td><td>${r.points}</td>
-        </tr>`).join('')}</tbody></table></div></div>`;
-  });
-  h += `<p class="legend">Trykk på et lag for å se spilte kamper og hva som kommer. K kamper · S seire · U uavgjort · T tap · P poeng. De to beste fra hver første pulje går til A-puljen; resten går til B-puljen.</p>`;
-  return h;
+    <p class="legend">Rangering: poeng → innbyrdes → straffekast. K kamper · S seire · U uavgjort · T tap · P poeng. De to beste går videre over streken.</p>`;
 }
 
 function sheetTeamMatches(id){
@@ -1437,15 +1420,34 @@ function qualificationLists(kind){
     return { a:rows.filter(r => r.pos <= 2), b:rows.filter(r => r.pos > 2), aTitle:'A-gruppespill', bTitle:'B-gruppespill' };
   }
   return {
-    a:S.standings.filter(s => s.stage === 'a_group' && s.pos <= 4).sort((a,b) => a.pos - b.pos),
-    b:S.standings.filter(s => s.stage === 'b_group' && s.pos <= 4).sort((a,b) => a.pos - b.pos),
+    a:S.standings.filter(s => s.stage === 'a_group' && s.pos <= 2).sort((a,b) => String(a.grp).localeCompare(String(b.grp)) || a.pos - b.pos),
+    b:S.standings.filter(s => s.stage === 'b_group' && s.pos <= 2).sort((a,b) => String(a.grp).localeCompare(String(b.grp)) || a.pos - b.pos),
     aTitle:'A-semifinaler', bTitle:'B-semifinaler'
   };
 }
 function qualifierGrid(kind){
   const q = qualificationLists(kind);
-  const list = (title, rows) => `<div class="qualifier-list"><strong>${esc(title)}</strong>${rows.map(r => `<span>${kind === 'groups' ? `${esc(r.grp)}${r.pos} · ` : `${r.pos}. `}${esc(r.name)}</span>`).join('') || '<span>Ikke avgjort</span>'}</div>`;
+  const list = (title, rows) => `<div class="qualifier-list"><strong>${esc(title)}</strong>${rows.map(r => `<span>${esc(r.grp)}${r.pos} · ${esc(r.name)}</span>`).join('') || '<span>Ikke avgjort</span>'}</div>`;
   return `<div class="qualifier-grid">${list(q.aTitle, q.a)}${list(q.bTitle, q.b)}</div>`;
+}
+function cutoffTieCohorts(stages){
+  const wanted = Array.isArray(stages) ? stages : [stages];
+  const found = [];
+  wanted.forEach(stage => {
+    const groups = [...new Set(S.standings.filter(row => row.stage === stage).map(row => row.grp))];
+    groups.forEach(grp => {
+      const rows = S.standings.filter(row => row.stage === stage && row.grp === grp).sort((a,b) => a.pos - b.pos);
+      const second = rows.find(row => row.pos === 2), third = rows.find(row => row.pos === 3);
+      if(!second || !third || second.points !== third.points || Number(second.head_to_head_points || 0) !== Number(third.head_to_head_points || 0)) return;
+      const cohort = rows.filter(row => row.points === second.points && Number(row.head_to_head_points || 0) === Number(second.head_to_head_points || 0));
+      if(cohort.some(row => !row.shootout_rank)) found.push({ stage, grp, rows:cohort });
+    });
+  });
+  return found;
+}
+function tiebreakPanel(ties){
+  if(!ties.length) return '';
+  return `<div class="tiebreak-list">${ties.map(tie => `<div class="tiebreak-call"><span><b>Straffekast i ${esc(tie.grp)}</b><small>${tie.rows.map(row => esc(row.name)).join(' · ')}</small></span><button class="btn sm" data-do="tiebreak" data-stage="${esc(tie.stage)}" data-group="${esc(tie.grp)}">Avgjør</button></div>`).join('')}</div>`;
 }
 function phaseControl(){
   const phase = S.t.phase || 'setup';
@@ -1453,19 +1455,23 @@ function phaseControl(){
   const groupRest = S.matches.filter(m => m.stage === 'group' && m.status !== 'finished').length;
   const finalRest = S.matches.filter(m => ['a_group','b_group'].includes(m.stage) && m.status !== 'finished').length;
   const knockoutRest = S.matches.filter(m => /^[ab]_(r\d+|qf|sf|final|bronze)$/.test(m.stage) && m.team_a && m.team_b && m.status !== 'finished').length;
-  let title = 'Før start', body = 'Legg inn lagene og trekk puljene.', extra = '', action = '', actionLabel = '', disabled = false;
+  let title = 'Før start', body = 'Legg inn 16 lag og trekk fire puljer med fire.', extra = '', action = '', actionLabel = '', disabled = false;
   if(phase === 'group'){
-    title = 'Første gruppespill'; body = groupRest ? `${groupRest} kamper gjenstår før tabellene kan låses.` : 'Alle kampene er ferdige. Lås tabellene før A- og B-lagene kontrolleres.';
-    action = 'close_group'; actionLabel = 'Avslutt første gruppespill'; disabled = groupRest > 0;
+    const ties = groupRest ? [] : cutoffTieCohorts('group');
+    title = 'Første gruppespill'; body = groupRest ? `${groupRest} kamper gjenstår før tabellene kan låses.` : ties.length ? 'Tabellene er helt like ved streken. Gjennomfør straffekast og registrer rekkefølgen.' : 'Alle kampene er ferdige. Lås tabellene før A- og B-lagene kontrolleres.';
+    extra = tiebreakPanel(ties); action = 'close_group'; actionLabel = 'Avslutt første gruppespill'; disabled = groupRest > 0 || ties.length > 0;
   } else if(phase === 'group_review'){
-    title = 'Kontroller A- og B-lag'; body = 'De to beste i hver første pulje går til A. Kontroller listen før kampene opprettes.';
-    extra = qualifierGrid('groups'); action = 'start_final_groups'; actionLabel = 'Start A-/B-gruppespill';
+    const ties = cutoffTieCohorts('group');
+    title = 'Kontroller A- og B-lag'; body = 'De to beste i hver første pulje går til A1/A2. De to nederste går til B1/B2.';
+    extra = tiebreakPanel(ties) + qualifierGrid('groups'); action = 'start_final_groups'; actionLabel = 'Start A-/B-gruppespill'; disabled = ties.length > 0;
   } else if(phase === 'final_groups'){
-    title = 'A-/B-gruppespill'; body = finalRest ? `${finalRest} kamper gjenstår før semifinalistene kan kontrolleres.` : 'Begge gruppespill er ferdige. Kontroller de fire beste i hver pulje.';
-    action = 'review_semifinalists'; actionLabel = 'Kontroller semifinalister'; disabled = finalRest > 0;
+    const ties = finalRest ? [] : cutoffTieCohorts(['a_group','b_group']);
+    title = 'A1/A2 og B1/B2'; body = finalRest ? `${finalRest} kamper gjenstår før semifinalistene kan kontrolleres.` : ties.length ? 'En semifinaleplass er helt lik. Gjennomfør straffekast og registrer rekkefølgen.' : 'Andre gruppespill er ferdig. Kontroller de to beste i hver pulje.';
+    extra = tiebreakPanel(ties); action = 'review_semifinalists'; actionLabel = 'Kontroller semifinalister'; disabled = finalRest > 0 || ties.length > 0;
   } else if(phase === 'semifinal_review'){
-    title = 'Kontroller semifinalister'; body = 'De fire beste i A og B går direkte til hvert sitt semifinaletre.';
-    extra = qualifierGrid('semis'); action = 'start_knockout'; actionLabel = 'Start knockout';
+    const ties = cutoffTieCohorts(['a_group','b_group']);
+    title = 'Kontroller semifinalister'; body = 'De to beste i A1/A2 og B1/B2 går direkte til semifinaler.';
+    extra = tiebreakPanel(ties) + qualifierGrid('semis'); action = 'start_knockout'; actionLabel = 'Start knockout'; disabled = ties.length > 0;
   } else if(phase === 'knockout'){
     title = 'Knockout'; body = knockoutRest ? `${knockoutRest} startklare knockoutkamper gjenstår.` : 'Finaler og bronsefinaler er ferdige. Turneringen kan avsluttes.';
     action = 'finish_tournament'; actionLabel = 'Avslutt turneringen'; disabled = knockoutRest > 0;
@@ -1484,7 +1490,7 @@ function viewAdmin(){
   const progress = progressSummary();
   const isBeforeStart = S.t.phase === 'setup';
   const groupCount = new Set(S.teams.map(t => t.grp)).size;
-  const teamSummary = S.teams.length ? `${S.teams.length} lag${groupCount > 1 ? ` i ${groupCount} puljer` : ' klare for trekning'}` : 'Fyll inn opptil 16 lag';
+  const teamSummary = S.teams.length ? `${S.teams.length}/16 lag${groupCount > 1 ? ` i ${groupCount} puljer` : ' klare for trekning'}` : 'Fyll inn 16 lag';
   const row = (act, icon, title, sub, cls) =>
     `<button class="row-btn ${cls || ''}" data-do="${act}"><span class="ico">${svg(icon)}</span>
       <span class="tx"><b>${title}</b><small>${sub}</small></span>
@@ -1503,9 +1509,9 @@ function viewAdmin(){
     ${isBeforeStart ? `<div class="eyebrow">Før start</div>
       <div class="rows">
         ${row('teams', ICON.people, 'Lag og puljer', teamSummary)}
-        ${row('setup', ICON.cog, 'Innstillinger', `${Math.round(S.t.match_seconds/60)} min · ${S.t.num_courts} baner · de to beste til A`)}
+        ${row('setup', ICON.cog, 'Innstillinger', `${Math.round(S.t.match_seconds/60)} min · ${S.t.num_courts} baner · 56 kamper`)}
         ${row('keys', ICON.key, 'Koder til lagene', S.teams.length ? 'Del ut én kode per lag' : 'Kommer når lagene er lagt inn')}
-        ${row('begin', ICON.play, 'Trekk grupper', S.teams.length >= 12 ? 'Fordeler lagene tilfeldig og viser begge sluttspilltrærne' : 'Fyll inn minst 12 lag først')}
+        ${row('begin', ICON.play, 'Trekk grupper', S.teams.length === 16 ? 'Fire tilfeldige grupper med fire lag' : 'Fyll inn alle 16 lag først')}
       </div>` : `<div class="eyebrow">Tilgang og trekning</div>
       <p class="phase-note">Trekket er offentlig og låst${S.t.drawn_at ? ` siden ${esc(new Date(S.t.drawn_at).toLocaleTimeString('nb-NO', {hour:'2-digit', minute:'2-digit'}))}` : ''}. Lagliste og fellesinnstillinger kan bare endres etter full nullstilling.</p>
       <div class="rows">${row('keys', ICON.key, 'Koder til lagene', 'Se, kopier eller lag en ny enkeltkode')}</div>`}
@@ -1578,9 +1584,9 @@ function askSignOut(){
 function confirmPhase(action){
   const copy = {
     close_group:['Avslutt første gruppespill?', 'Tabellene låses slik at A- og B-lagene kan kontrolleres.', 'Avslutt gruppespillet'],
-    start_final_groups:['Start A-/B-gruppespill?', 'Listen du nettopp kontrollerte brukes til å opprette alle kampene i A og B.', 'Start gruppespillet'],
+    start_final_groups:['Start A1/A2 og B1/B2?', 'Det opprettes fire nye puljer med fire lag og seks kamper i hver.', 'Start gruppespillet'],
     review_semifinalists:['Kontroller semifinalistene?', 'A- og B-tabellene låses før semifinalistene vises.', 'Lås tabellene'],
-    start_knockout:['Start knockout?', 'De fire viste lagene i hver pulje settes inn i semifinaletreet.', 'Start knockout'],
+    start_knockout:['Start knockout?', 'De to beste fra hver A- og B-pulje krysses i semifinalene.', 'Start knockout'],
     finish_tournament:['Avslutt turneringen?', 'Alle resultater låses og turneringen markeres som ferdig.', 'Avslutt turneringen']
   }[action];
   if(!copy) return;
@@ -1640,22 +1646,54 @@ function sheetResetConfirm(){
   reset.onclick = async () => { const ok = await rpc('kubb_admin_reset', {}, 'Alt er nullstilt'); if(ok) close(); };
 }
 
+function sheetTiebreak(stage, grp){
+  const tie = cutoffTieCohorts(stage).find(item => item.grp === grp);
+  if(!tie){ toast('Denne plasseringen er allerede avgjort'); return; }
+  const order = [];
+  const { box, close } = sheet(`<h2>Straffekast · ${esc(grp)}</h2>
+    <p class="lede">Gjennomfør straffekast på banen. Trykk deretter lagene i slutt­rekkefølge, med vinneren først.</p>
+    <div class="shootout-picks" data-picks></div>
+    <p class="lede" data-order>Ingen lag valgt ennå.</p>
+    <div class="cluster"><button class="btn" data-x="cancel">Avbryt</button><button class="btn primary" data-x="save" disabled>Lagre rekkefølge</button></div>`);
+  const list = box.querySelector('[data-picks]'), note = box.querySelector('[data-order]'), save = box.querySelector('[data-x="save"]');
+  const draw = () => {
+    list.innerHTML = tie.rows.map(row => {
+      const index = order.indexOf(row.team_id);
+      return `<button class="choice" data-team="${row.team_id}" data-picked="${index >= 0}"><span class="k">${index >= 0 ? index + 1 : '–'}</span><span><b>${esc(row.name)}</b><small>${index >= 0 ? `${index + 1}. plass etter straffekast` : 'Trykk for neste plass'}</small></span></button>`;
+    }).join('');
+    note.textContent = order.length ? `${order.length} av ${tie.rows.length} lag plassert. Trykk et valgt lag for å angre.` : 'Ingen lag valgt ennå.';
+    save.disabled = order.length !== tie.rows.length;
+    list.querySelectorAll('[data-team]').forEach(button => button.onclick = () => {
+      const id = button.dataset.team, index = order.indexOf(id);
+      if(index >= 0) order.splice(index, 1); else order.push(id);
+      draw();
+    });
+  };
+  draw();
+  box.querySelector('[data-x="cancel"]').onclick = close;
+  save.onclick = async () => {
+    const ok = await rpc('kubb_admin_set_tiebreak', { p_stage:stage, p_grp:grp, p_teams:order }, 'Straffekastrekkefølgen er lagret');
+    if(ok) close();
+  };
+}
+
 function sheetResult(id, editing = false){
   const m = S.matches.find(x => x.id === id); if(!m) return;
   const a = tName(m.team_a) || '?', b = tName(m.team_b) || '?';
   const r = left(m);
-  const status = editing ? 'Endringen oppdaterer tabellen med én gang.' : m.status === 'paused' ? 'Kampen er pauset' : r <= 0 ? `Tiden gikk ut for ${clock(-r).replace('+','')} siden` : `${clock(r)} igjen av kampen`;
+  const knockoutShootout = !isGroupStage(m.stage) && r <= 0;
+  const status = editing ? 'Endringen oppdaterer resultatet med én gang.' : m.status === 'paused' ? 'Kampen er pauset' : knockoutShootout ? 'Tiden er ute. Kampen må avgjøres med straffekast.' : r <= 0 ? `Tiden gikk ut for ${clock(-r).replace('+','')} siden` : `${clock(r)} igjen av kampen`;
   const affected = editing ? downstreamMatches(id).filter(next => next.team_a || next.team_b || next.status !== 'queued') : [];
   const needsReset = affected.some(next => ['ready','live','paused','finished'].includes(next.status));
   const impact = affected.length ? `<div class="impact"><b>Påvirker ${affected.length} senere ${affected.length === 1 ? 'kamp' : 'kamper'}</b>
     <p>${affected.slice(0,3).map(next => `${esc(next.label || stageName(next.stage))} (${esc(matchStateLabel(next))})`).join(' · ')}${affected.length > 3 ? ` · og ${affected.length - 3} til` : ''}</p></div>` : '';
   const { box, close } = sheet(`
-    <h2>${editing ? 'Endre resultat' : 'Hvem vant?'}</h2>
+    <h2>${editing ? 'Endre resultat' : knockoutShootout ? 'Straffekast · velg vinner' : 'Hvem vant?'}</h2>
     <p class="lede">${esc(m.label || 'Kamp')} · ${esc(status)}</p>
     ${impact}
     ${needsReset ? `<button class="btn danger block" data-x="reset-path">Nullstill senere kamper først</button>` : ''}
-    <button class="choice accent" data-r="a" ${needsReset ? 'disabled' : ''}><span><b>${esc(a)}</b><small>3 poeng</small></span></button>
-    <button class="choice accent" data-r="b" ${needsReset ? 'disabled' : ''}><span><b>${esc(b)}</b><small>3 poeng</small></span></button>
+    <button class="choice accent" data-r="a" ${needsReset ? 'disabled' : ''}><span><b>${esc(a)}</b><small>${isGroupStage(m.stage) ? '3 poeng' : knockoutShootout ? 'Vinner etter straffekast' : 'Vinner kampen'}</small></span></button>
+    <button class="choice accent" data-r="b" ${needsReset ? 'disabled' : ''}><span><b>${esc(b)}</b><small>${isGroupStage(m.stage) ? '3 poeng' : knockoutShootout ? 'Vinner etter straffekast' : 'Vinner kampen'}</small></span></button>
     ${isGroupStage(m.stage) ? `<button class="choice" data-r="draw" ${needsReset ? 'disabled' : ''}><span><b>Uavgjort</b><small>1 poeng til hvert lag</small></span></button>` : ''}
     ${editing ? `<button class="btn danger block" data-x="reopen">Gjenåpne kampen</button>` : ''}
     <div style="margin-top:20px"><button class="btn ghost block" data-x="cancel">Avbryt</button></div>`);
@@ -1719,6 +1757,16 @@ function sheetManageReadyMatch(id){
   });
 }
 
+function confirmRemoveTeam(id, closeParent){
+  const selectedTeam = team(id); if(!selectedTeam) return;
+  const knockout = ['knockout'].includes(S.t.phase);
+  const detail = `Alle spilte og kommende kamper for ${selectedTeam.name} strykes og tabellene regnes på nytt.${knockout ? ' Hele knockouttreet nullstilles og fylles på nytt.' : ''} Handlingen kan ikke angres.`;
+  ask(`Stryk ${selectedTeam.name}?`, detail, 'Stryk lag og kamper', async () => {
+    const result = await rpc('kubb_admin_remove_team', { p_team:id }, `${selectedTeam.name} og alle kampene er strøket`);
+    if(result) closeParent?.();
+  }, true);
+}
+
 function sheetTeamStatus(){
   const drawn = S.t.drawn_at ? Date.parse(S.t.drawn_at) : Date.parse(S.t.updated_at || new Date().toISOString());
   const priority = { live:0, ready:1, paused:2, waiting:3, done:4 };
@@ -1742,10 +1790,11 @@ function sheetTeamStatus(){
     <div class="status-list">${rows.map(row => `<div class="status-row">
       <i class="status-dot" data-state="${row.state}"></i>
       <span><b>${esc(row.team.name)}</b><small>${row.finished} spilt · ${row.state === 'waiting' ? `ventet ${row.waited} min` : row.label}</small></span>
-      <span>${esc(row.label)}</span>
+      <span class="status-action"><span>${esc(row.label)}</span><button class="btn sm danger" data-remove-team="${row.team.id}">Stryk lag</button></span>
     </div>`).join('')}</div>
     <div style="margin-top:20px"><button class="btn block" data-x="close">Lukk</button></div>`);
   box.querySelector('[data-x="close"]').onclick = close;
+  box.querySelectorAll('[data-remove-team]').forEach(button => button.onclick = () => confirmRemoveTeam(button.dataset.removeTeam, close));
 }
 
 function sheetSetup(){
@@ -1755,7 +1804,7 @@ function sheetSetup(){
     <label class="field"><span>Kamplengde i minutter</span><input id="f-min" type="number" min="1" max="180" inputmode="numeric" value="${Math.round(S.t.match_seconds/60)}">
       <small>En kamp kan avgjøres når som helst før tiden går ut. Går tiden ut uten vinner, blir det uavgjort.</small></label>
     <label class="field"><span>Antall baner</span><input id="f-courts" type="number" min="1" max="20" inputmode="numeric" value="${S.t.num_courts}"></label>
-    <p class="lede">De to beste fra hver første pulje går til A-gruppespillet, og de to nederste går til B-gruppespillet.</p>
+    <p class="lede">Fast format: fire grupper à fire, så A1/A2 for de to beste og B1/B2 for de to nederste. Deretter semifinaler, finale og bronsefinale i begge spor.</p>
     <div style="margin-top:22px" class="cluster">
       <button class="btn" data-x="cancel">Avbryt</button>
       <button class="btn primary" data-x="save">Lagre</button></div>`);
@@ -1780,15 +1829,15 @@ function sheetTeams(){
   </label>`).join('');
   const { box, close } = sheet(`
     <h2>Lag og puljer</h2>
-    <p class="lede">Fyll inn 12–16 lag. Tomme felt ignoreres; med 13–15 lag får noen puljer tre lag. De to første utfylte lagene får arrangørtilgang med sin egen lagkode.</p>
+    <p class="lede">Fyll inn alle 16 lag. De trekkes senere i fire puljer med fire. De to første lagene får arrangørtilgang med sin egen lagkode.</p>
     <div class="team-grid">${fields}</div>
-    <p class="lede" style="margin-top:18px">Når du lagrer får lagene nye koder, og en eventuell pågående turnering nullstilles.</p>
+    <p class="lede" style="margin-top:18px">Når du lagrer får alle lagene hver sin nye kode.</p>
     <div class="cluster"><button class="btn" data-x="cancel">Avbryt</button><button class="btn primary" data-x="save">Lagre lag</button></div>`);
 
   box.querySelector('[data-x="cancel"]').onclick = close;
   box.querySelector('[data-x="save"]').onclick = async e => {
     const entered = [...box.querySelectorAll('.team-name')].map(n => n.value.trim()).filter(Boolean);
-    if(entered.length < 12 || entered.length > 16){ toast('Legg inn mellom 12 og 16 lag', true); return; }
+    if(entered.length !== 16){ toast('Fyll inn alle 16 lag', true); return; }
     const teams = entered.map(name => ({ name, grp:'A' }));
     e.currentTarget.classList.add('busy');
     const ok = await rpc('kubb_admin_set_teams', { p_teams: teams }, `${teams.length} lag lagret`);

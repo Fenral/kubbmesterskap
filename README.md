@@ -1,14 +1,15 @@
 # Kubbmesterskap
 
-Turneringsverktøy for kubb. Én HTML-fil som kjører hele arrangementet: påmelding av lag, to gruppespill, banetildeling, 40-minutters nedtelling, tabeller og separate A- og B-sluttspill fram til finale.
+Turneringsverktøy for kubb. Én HTML-fil som kjører hele arrangementet: 16 lag, to gruppespill, banetildeling, 40-minutters nedtelling, tabeller og separate A- og B-sluttspill med finale og bronsefinale.
 
 ## Turneringsflyt
 
-1. Arrangøren legger inn 12–16 lag. De to første lagene får arrangørtilgang med sin vanlige lagkode, og kan trekke fire tilfeldige puljer, se og dele alle lagkoder, samt rette resultater før neste turneringstrinn låses. Trekket tidsstemples og kan ikke kjøres på nytt uten full nullstilling. Seier gir 3 poeng, uavgjort 1 poeng og tap 0 poeng.
-2. De to beste fra hver første pulje går til A-gruppespillet, og de to nederste går til B-gruppespillet.
-3. Arrangøren avslutter første gruppespill, kontrollerer A- og B-lagene og starter det nye gruppespillet. Etterpå kontrolleres semifinalistene før knockout startes. Vinnere går videre automatisk inne i knockouttreet.
+1. Arrangøren legger inn nøyaktig 16 lag. De to første lagene får arrangørtilgang med sin vanlige lagkode, og kan trekke fire tilfeldige puljer med fire lag, se og dele alle lagkoder, samt rette resultater før neste turneringstrinn låses. Trekket tidsstemples og kan ikke kjøres på nytt uten full nullstilling. Seier gir 3 poeng, uavgjort 1 poeng og tap 0 poeng.
+2. De to beste fra hver første pulje går til A1 eller A2. De to nederste går til B1 eller B2. Det blir fire nye puljer med fire lag og seks kamper i hver.
+3. Rangeringen er poeng, deretter innbyrdes poeng. Er lagene fortsatt helt like ved kvalifiseringsstreken, gjennomføres straffekast og arrangøren registrerer rekkefølgen. Etter andre gruppespill går de to beste fra hver pulje direkte til semifinaler i A eller B. Begge spor har finale og bronsefinale. En knockoutkamp kan aldri registreres uavgjort og avgjøres med straffekast ved behov.
 4. Banekartet viser live-kamper, neste valgte kamp og nedtelling på fem baner i fast rekkefølge. Når 40 minutter går ut, blir en gruppespillkamp automatisk uavgjort. Arrangøren velger alltid neste kamp manuelt, kan flytte en ikke startet kamp, legge den tilbake i køen og gi en pågående kamp fem minutter ekstra. Berørte lag får popup, vedvarende banemelding og valgfrie nettleservarsler.
-5. Arrangøren avslutter turneringen eksplisitt etter finaler og bronsefinaler. Resultatene låses og hele turneringen får status `finished`.
+5. Er et lag ikke klart, kan arrangøren legge kampen tilbake i køen og velge en annen. Arrangøren kan også stryke et lag; da fjernes alle lagets spilte og kommende kamper, tabellene beregnes på nytt og laget kan ikke lenger logge inn.
+6. Arrangøren avslutter turneringen eksplisitt etter finaler og bronsefinaler. Resultatene låses og hele turneringen får status `finished`. En komplett turnering består av 56 kamper: 24 + 24 i gruppespillene og 8 i knockout.
 
 Appen er laget for å brukes på mobil ute på banen. Arrangøren styrer alt fra ett ark, lagene logger inn med sin egen kode og ser bare det de trenger, og en storskjermvisning kan kastes opp på en projektor.
 
@@ -41,6 +42,7 @@ Oppdateringer kommer via Supabase Realtime på `kubb_matches`, `kubb_teams` og `
 | `kubb_matches` | Kamper i gruppespill og sluttspill, med bane, status og klokke |
 | `kubb_codes` | Innloggingskoder. Ingen RLS-policies — kun tilgjengelig for SECURITY DEFINER-funksjoner |
 | `kubb_audit_log` | Tidspunkt, arrangør og beskrivelse for alle administrative endringer |
+| `kubb_tiebreaks` | Straffekastrekkefølge for lag som fortsatt er helt like |
 | `kubb_login_attempts` | Rate limiting på innlogging |
 
 Funksjonene deler seg i to: `kubb_login` / `kubb_role` / `kubb_now` er åpne for leseflyten, mens all kampstyring og alle `kubb_admin_*`-funksjoner krever en kode med arrangørrolle.
