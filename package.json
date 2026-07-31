@@ -5,7 +5,8 @@
   "private": true,
   "license": "MIT",
   "scripts": {
-    "test:db": "node verify-migrations.mjs"
+    "test:db": "node verify-migrations.mjs",
+    "test:ui": "node verify-ui.mjs"
   },
   "devDependencies": {
     "@electric-sql/pglite": "^0.5.4",

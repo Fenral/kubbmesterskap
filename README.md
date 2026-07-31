@@ -4,10 +4,11 @@ Turneringsverktøy for kubb. Én HTML-fil som kjører hele arrangementet: påmel
 
 ## Turneringsflyt
 
-1. Arrangøren legger inn nøyaktig 16 lag. De to første lagene får arrangørtilgang med sin vanlige lagkode, og kan trekke fire tilfeldige puljer med fire lag, se og dele alle lagkoder, samt rette resultater før neste turneringstrinn starter. Seier gir 3 poeng, uavgjort 1 poeng og tap 0 poeng.
+1. Arrangøren legger inn 12–16 lag. De to første lagene får arrangørtilgang med sin vanlige lagkode, og kan trekke fire tilfeldige puljer, se og dele alle lagkoder, samt rette resultater før neste turneringstrinn låses. Seier gir 3 poeng, uavgjort 1 poeng og tap 0 poeng.
 2. De to beste fra hver første pulje går til A-gruppespillet, og de to nederste går til B-gruppespillet.
-3. Når A- og B-gruppespillene er ferdige, bygges egne utslagstrær for hvert nivå. Vinnere går videre automatisk.
-4. Banekartet viser live-kamper med nedtelling og en konkret kandidat til neste kamp på hver bane. Når 40 minutter går ut, blir en gruppespillkamp automatisk uavgjort, tabellen oppdateres og neste kamp tildeles banen. Arrangøren kan velge en annen startklar kamp når en kamp på banen ikke kan starte. Lag kan frivillig slå på nettleservarsler når egen kamp får bane, og arrangørskjermer kan holdes våkne gjennom dagen.
+3. Arrangøren avslutter første gruppespill, kontrollerer A- og B-lagene og starter det nye gruppespillet. Etterpå kontrolleres semifinalistene før knockout startes. Vinnere går videre automatisk inne i knockouttreet.
+4. Banekartet viser live-kamper, neste valgte kamp og nedtelling på fem baner i fast rekkefølge. Når 40 minutter går ut, blir en gruppespillkamp automatisk uavgjort. Arrangøren velger alltid neste kamp manuelt. Berørte lag får popup, vedvarende banemelding og valgfrie nettleservarsler.
+5. Arrangøren avslutter turneringen eksplisitt etter finaler og bronsefinaler. Resultatene låses og hele turneringen får status `finished`.
 
 Appen er laget for å brukes på mobil ute på banen. Arrangøren styrer alt fra ett ark, lagene logger inn med sin egen kode og ser bare det de trenger, og en storskjermvisning kan kastes opp på en projektor.
 
@@ -27,7 +28,7 @@ Oppdateringer kommer via Supabase Realtime på `kubb_matches`, `kubb_teams` og `
 
 **Arrangør** logger inn med arrangørkoden og får et arbeidsark med fire faner: innstillinger (kamplengde, antall baner, antall videre fra gruppe), lag, koder og resultatregistrering. Herfra startes turneringen, kamper settes i gang og pauses, baner tildeles og sluttspillet genereres.
 
-**Lag** logger inn med sin firesifrede kode og ser sine egne kamper, hvilken bane de skal på, nedtellingen og tabellen.
+**Lag** logger inn med sin firesifrede kode og ser sine egne kamper, hvilken bane de skal på, nedtellingen og tabellen. Vanlige lagkoder har bare lesetilgang og varsler.
 
 **Storskjerm** krever ingen innlogging og viser løpende kamper med nedtelling.
 
@@ -39,11 +40,12 @@ Oppdateringer kommer via Supabase Realtime på `kubb_matches`, `kubb_teams` og `
 | `kubb_teams` | Lag, gruppe og seeding |
 | `kubb_matches` | Kamper i gruppespill og sluttspill, med bane, status og klokke |
 | `kubb_codes` | Innloggingskoder. Ingen RLS-policies — kun tilgjengelig for SECURITY DEFINER-funksjoner |
+| `kubb_audit_log` | Tidspunkt, arrangør og beskrivelse for alle administrative endringer |
 | `kubb_login_attempts` | Rate limiting på innlogging |
 
-Funksjonene deler seg i tre: `kubb_login` / `kubb_role` / `kubb_now` er åpne, `kubb_start_match` / `kubb_pause_match` / `kubb_resume_match` / `kubb_finish_match` / `kubb_reopen_match` / `kubb_set_court` krever gyldig kode, og `kubb_admin_*` krever arrangørkoden.
+Funksjonene deler seg i to: `kubb_login` / `kubb_role` / `kubb_now` er åpne for leseflyten, mens all kampstyring og alle `kubb_admin_*`-funksjoner krever en kode med arrangørrolle.
 
-Etter første gruppespill oppretter `kubb_create_final_groups` A- og B-gruppene. Når de er ferdige bygger `kubb_create_pool_playoffs` separate seedede utslagstrær med `feeds_match`/`feeds_side`-pekere. Når en utslagskamp avsluttes flytter `kubb_propagate` vinneren videre av seg selv.
+`kubb_admin_phase_action` styrer de eksplisitte faseovergangene. Først etter arrangørens godkjenning oppretter `kubb_create_final_groups` A- og B-gruppene, og senere seedes semifinalene. Når en utslagskamp avsluttes flytter `kubb_propagate` vinneren videre av seg selv.
 
 ## Sette opp fra bunn
 

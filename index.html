@@ -54,22 +54,22 @@
   --mono: ui-monospace, "SF Mono", SFMono-Regular, "JetBrains Mono", "Roboto Mono", Menlo, monospace;
 }
 
-/* storskjerm: innendørs/skygge, blikk på 15 meter → invertert */
+/* oversiktsmodus brukes ute i dagslys: lys, matt flate med høy kontrast */
 body.tv{
-  color-scheme: dark;
-  --bg:        oklch(0.165 0.012 260);
-  --surface:   oklch(0.215 0.013 260);
-  --surface-2: oklch(0.255 0.014 260);
-  --surface-3: oklch(0.30 0.015 260);
-  --ink:   oklch(0.975 0.003 260);
-  --ink-2: oklch(0.78 0.010 260);
-  --ink-3: oklch(0.63 0.012 260);
-  --on-ink:oklch(0.18 0.014 260);
-  --line:   oklch(0.31 0.014 260);
-  --line-2: oklch(0.38 0.016 260);
-  --go:   oklch(0.80 0.175 152);
-  --warn: oklch(0.83 0.155 78);
-  --over: oklch(0.70 0.185 25);
+  color-scheme: light;
+  --bg:        oklch(0.958 0.004 260);
+  --surface:   oklch(1 0 0);
+  --surface-2: oklch(0.93 0.006 260);
+  --surface-3: oklch(0.90 0.007 260);
+  --ink:   oklch(0.14 0.016 260);
+  --ink-2: oklch(0.36 0.014 260);
+  --ink-3: oklch(0.47 0.012 260);
+  --on-ink:oklch(0.99 0.002 260);
+  --line:   oklch(0.84 0.007 260);
+  --line-2: oklch(0.75 0.009 260);
+  --go:   oklch(0.43 0.16 152);
+  --warn: oklch(0.48 0.15 68);
+  --over: oklch(0.48 0.20 26);
 }
 
 *,*::before,*::after{box-sizing:border-box}
@@ -285,6 +285,11 @@ main{max-width:960px;margin:0 auto;padding:var(--s4) var(--s4) var(--s7)}
 }
 .court-next{padding:9px var(--s4);border-top:1px solid var(--line);font-size:12.5px;color:var(--ink-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .court-next b{color:var(--ink);font-weight:620}
+.court-next.assigned{display:flex;align-items:center;gap:10px;white-space:normal;background:var(--surface-2)}
+.court-next.assigned>span{flex:1;min-width:0}
+.court-next.assigned small{display:block;font-size:10.5px;font-weight:700;letter-spacing:.055em;text-transform:uppercase;color:var(--ink-3);margin-bottom:1px}
+.court-next.assigned b{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.court-next.assigned .btn{flex:0 0 auto}
 .turn-call{
   position:sticky;top:8px;z-index:4;display:flex;align-items:center;gap:11px;
   margin-bottom:var(--s4);padding:12px 14px;background:var(--ink);color:var(--on-ink);
@@ -294,6 +299,14 @@ main{max-width:960px;margin:0 auto;padding:var(--s4) var(--s4) var(--s7)}
 .turn-call[data-state="paused"]{background:var(--warn);color:#2e1900}
 .turn-call .turn-mark{flex:0 0 auto;min-width:42px;padding:5px 7px;border:1px solid currentColor;border-radius:7px;text-align:center;font-family:var(--mono);font-size:11px;font-weight:720;text-transform:uppercase}
 .turn-call b,.turn-call small{display:block}.turn-call b{font-size:15px;font-weight:680;letter-spacing:-.012em}.turn-call small{margin-top:2px;font-size:12px;opacity:.78}
+.admin-alerts{display:grid;gap:7px;margin-bottom:var(--s4)}
+.admin-alert{display:flex;align-items:flex-start;gap:10px;padding:11px 13px;border:1px solid color-mix(in oklch,var(--warn) 36%,var(--line));border-radius:var(--r1);background:var(--warn-w);color:var(--ink)}
+.admin-alert[data-kind="over"]{border-color:color-mix(in oklch,var(--over) 38%,var(--line));background:var(--over-w)}
+.admin-alert .mark-alert{flex:0 0 auto;width:8px;height:8px;border-radius:50%;margin-top:6px;background:var(--warn)}
+.admin-alert[data-kind="over"] .mark-alert{background:var(--over)}
+.admin-alert b{display:block;font-size:13.5px;font-weight:650}.admin-alert small{display:block;margin-top:1px;color:var(--ink-2);font-size:12px}
+.assignment-pop{position:fixed;left:var(--s4);right:var(--s4);top:calc(env(safe-area-inset-top) + 72px);z-index:var(--z-toast);max-width:520px;margin:auto;padding:14px;background:var(--ink);color:var(--on-ink);border-radius:var(--r2);box-shadow:var(--shadow-3);animation:cardIn .34s var(--e-expo) both}
+.assignment-pop b,.assignment-pop small{display:block}.assignment-pop b{font-size:16px}.assignment-pop small{margin-top:2px;opacity:.76}.assignment-pop .cluster{margin-top:12px}.assignment-pop .btn{min-height:38px;border-color:color-mix(in oklch,var(--on-ink) 25%,transparent);background:color-mix(in oklch,var(--on-ink) 10%,transparent);color:var(--on-ink);box-shadow:none}
 .timer[data-tone="go"]  ~ .x, .court[data-tone="go"]   .track>i{background:var(--go)}
 .court[data-tone="warn"] .track>i{background:var(--warn)}
 .court[data-tone="over"] .track>i{background:var(--over)}
@@ -444,6 +457,26 @@ tr.stand-click:hover td,tr.stand-click:focus-visible td{background:var(--surface
 .stats>div:last-child{border-right:0}
 .stats b{display:block;font-family:var(--mono);font-size:21px;font-weight:640;letter-spacing:-.04em}
 .stats small{display:block;font-size:11.5px;color:var(--ink-3);margin-top:2px}
+.progress-card{margin:-8px 0 var(--s5);padding:13px var(--s4);border:1px solid var(--line);border-radius:var(--r2);background:var(--surface);box-shadow:var(--shadow-1)}
+.progress-copy{display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin-bottom:9px}
+.progress-copy b{font-size:13px}.progress-copy span{font:650 12px/1 var(--mono);color:var(--ink-2)}
+.progress-track{height:6px;overflow:hidden;border-radius:99px;background:var(--surface-3)}
+.progress-track i{display:block;height:100%;transform-origin:left;background:var(--go);border-radius:inherit;transition:transform .35s var(--e-out)}
+.phase-card{padding:var(--s4);margin-bottom:var(--s5);border:1px solid var(--line);border-radius:var(--r2);background:var(--surface);box-shadow:var(--shadow-1)}
+.phase-card header{display:flex;align-items:flex-start;justify-content:space-between;gap:var(--s3);margin-bottom:var(--s4)}
+.phase-card header h2{font-size:18px;letter-spacing:-.025em}.phase-card header p{margin-top:3px;color:var(--ink-2);font-size:13px}
+.phase-badge{flex:0 0 auto;padding:6px 8px;border-radius:8px;background:var(--surface-2);font:650 10.5px/1 var(--mono);color:var(--ink-2);white-space:nowrap}
+.phase-line{display:grid;grid-template-columns:repeat(6,1fr);gap:4px;margin-bottom:var(--s4)}
+.phase-line i{height:4px;border-radius:99px;background:var(--surface-3)}
+.phase-line i.done,.phase-line i.now{background:var(--ink)}.phase-line i.now{box-shadow:0 0 0 2px var(--surface),0 0 0 3px var(--ink)}
+.qualifier-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:0 0 var(--s4)}
+.qualifier-list{padding:10px 11px;border-radius:var(--r1);background:var(--surface-2)}
+.qualifier-list strong{display:block;margin-bottom:5px;font:700 11px/1 var(--mono);letter-spacing:.06em}
+.qualifier-list span{display:block;padding:3px 0;font-size:12.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.phase-note{margin:0 0 var(--s4);font-size:12.5px;color:var(--ink-2)}
+.activity{display:grid;gap:0;border:1px solid var(--line);border-radius:var(--r2);overflow:hidden;background:var(--surface)}
+.activity-row{display:grid;grid-template-columns:1fr auto;gap:4px 12px;padding:11px var(--s4);border-bottom:1px solid var(--line)}
+.activity-row:last-child{border-bottom:0}.activity-row b{font-size:13.5px;font-weight:580}.activity-row time{font:520 11px/1.5 var(--mono);color:var(--ink-3)}.activity-row small{grid-column:1/-1;font-size:11.5px;color:var(--ink-3)}
 
 /* ---------------- ark ---------------- */
 .scrim{
@@ -652,8 +685,9 @@ const svg = (d, s) => `<svg viewBox="0 0 24 24" aria-hidden="true"${s?` style="$
 const S = {
   code:null, role:null, teamId:null, teamName:null,
   t:{ name:'Kilkast', match_seconds:2400, num_courts:6, phase:'setup', qualifiers_per_group:2 },
-  teams:[], matches:[], standings:[],
-  offset:0, tab:'courts', filter:'all', groupView:null, tv:false, ready:false, seenOnCourt:{}
+  teams:[], matches:[], standings:[], audit:[],
+  offset:0, tab:'courts', filter:'all', groupView:null, tv:false, ready:false,
+  seenOnCourt:{}, assignmentPops:new Set(), adminAlerted:new Set()
 };
 const isAdmin = () => S.role === 'admin';
 const canAct  = () => S.role === 'admin' || S.role === 'team';
@@ -672,6 +706,25 @@ function elapsed(m){
   return Math.max(0, e);
 }
 const left = m => S.t.match_seconds - elapsed(m);
+const choose2 = n => n > 1 ? n * (n - 1) / 2 : 0;
+function plannedMatchTotal(){
+  const n = S.teams.length;
+  if(n < 12) return S.matches.length;
+  let first;
+  if(S.t.phase === 'setup'){
+    const base = Math.floor(n / 4), extra = n % 4;
+    first = extra * choose2(base + 1) + (4 - extra) * choose2(base);
+  } else {
+    const sizes = Object.values(S.teams.reduce((all, t) => ((all[t.grp] = (all[t.grp] || 0) + 1), all), {}));
+    first = sizes.reduce((sum, size) => sum + choose2(size), 0);
+  }
+  return first + choose2(8) + choose2(n - 8) + 8;
+}
+function progressSummary(){
+  const total = plannedMatchTotal();
+  const done = S.matches.filter(m => m.status === 'finished').length;
+  return { total, done, pct:total ? Math.min(100, Math.round(done / total * 100)) : 0 };
+}
 function tone(m){
   if(!m || m.status === 'ready') return 'idle';
   if(m.status === 'paused') return 'warn';
@@ -753,7 +806,12 @@ async function pullAll(){
   S.teams = tm.data || [];
   S.matches = mt.data || [];
   S.standings = st.data || [];
+  if(isAdmin() && S.code){
+    const { data } = await sb.rpc('kubb_admin_recent_actions', { p_code:S.code, p_limit:8 });
+    S.audit = data || [];
+  } else S.audit = [];
   announceNewCourtAssignments(previousMatches);
+  notifyAdminAlerts();
   S.ready = true;
 }
 let pending = null;
@@ -785,6 +843,7 @@ async function boot(){
   setInterval(beat, 250);
   setInterval(finishExpiredMatches, 10000);
   finishExpiredMatches();
+  setInterval(() => { if(isAdmin()){ notifyAdminAlerts(); paint(); } }, 15000);
   setInterval(async () => { const { data } = await sb.rpc('kubb_now'); if(data) S.offset = Date.parse(data) - Date.now(); }, 60000);
   setInterval(async () => { await pullAll(); paint(); }, 25000);
 }
@@ -806,17 +865,67 @@ async function enableNotifications(){
   paint();
 }
 function announceNewCourtAssignments(previous){
-  if(!notificationsEnabled() || !previous.length) return;
+  if(!previous.length) return;
   const before = new Map(previous.map(m => [m.id, m]));
   S.matches.filter(m => m.status === 'ready' && m.court).forEach(m => {
     const old = before.get(m.id);
     if(old && old.status === 'ready' && old.court === m.court) return;
     const a = tName(m.team_a) || '?', b = tName(m.team_b) || '?';
-    if(S.role === 'team' && (m.team_a === S.teamId || m.team_b === S.teamId))
+    if(S.teamId && (m.team_a === S.teamId || m.team_b === S.teamId)){
+      showAssignmentPopup(m, a, b);
       sendNotification('Din kamp er klar', `${a} – ${b} på bane ${m.court}`);
-    else if(isAdmin())
+    } else if(isAdmin()){
       sendNotification(`Bane ${m.court} er klar`, `${a} – ${b}`);
+    }
   });
+}
+function showAssignmentPopup(m, a, b){
+  const key = `${m.id}-${m.court}`;
+  if(S.assignmentPops.has(key)) return;
+  S.assignmentPops.add(key); buzz([25,45,25]);
+  const n = el('aside', 'assignment-pop');
+  n.setAttribute('role', 'alert');
+  n.innerHTML = `<b>Dere skal til bane ${m.court} nå</b><small>${esc(a)} mot ${esc(b)}</small>
+    <div class="cluster"><button class="btn" data-see>Se banen</button><button class="btn" data-close>Lukk</button></div>`;
+  n.querySelector('[data-see]').onclick = () => {
+    n.remove(); go('courts');
+    setTimeout(() => document.getElementById('c-' + m.id)?.scrollIntoView({ behavior:reduced() ? 'auto' : 'smooth', block:'center' }), 50);
+  };
+  n.querySelector('[data-close]').onclick = () => n.remove();
+  $('#layers').appendChild(n);
+  setTimeout(() => n.remove(), 9000);
+}
+
+function currentAdminAlerts(){
+  if(!isAdmin()) return [];
+  const alerts = [];
+  S.matches.filter(m => m.status === 'live' && left(m) <= 0).forEach(m => alerts.push({
+    key:`over-${m.id}`, kind:'over', title:`Tiden er ute på bane ${m.court}`,
+    body:`${tName(m.team_a) || '?'} mot ${tName(m.team_b) || '?'}`
+  }));
+  S.matches.filter(m => m.status === 'ready' && m.ready_at && (svrNow() - Date.parse(m.ready_at)) >= 5 * 60000).forEach(m => {
+    const mins = Math.floor((svrNow() - Date.parse(m.ready_at)) / 60000);
+    alerts.push({ key:`wait-${m.id}`, kind:'wait', title:`Bane ${m.court} har ventet i ${mins} min`, body:`${tName(m.team_a) || '?'} mot ${tName(m.team_b) || '?'}` });
+  });
+  const active = S.matches.filter(m => ['ready','live','paused'].includes(m.status));
+  const seen = new Map();
+  active.forEach(m => [m.team_a, m.team_b].filter(Boolean).forEach(id => {
+    if(seen.has(id) && seen.get(id) !== m.id) alerts.push({ key:`conflict-${id}`, kind:'over', title:'Banekonflikt', body:`${tName(id) || 'Et lag'} er satt opp i to aktive kamper` });
+    else seen.set(id, m.id);
+  }));
+  return [...new Map(alerts.map(a => [a.key, a])).values()];
+}
+function notifyAdminAlerts(){
+  currentAdminAlerts().forEach(a => {
+    if(S.adminAlerted.has(a.key)) return;
+    S.adminAlerted.add(a.key);
+    sendNotification(a.title, a.body);
+  });
+}
+function adminAlertPanel(){
+  const alerts = currentAdminAlerts();
+  if(!alerts.length || S.tv) return '';
+  return `<aside class="admin-alerts" aria-label="Varsler til arrangør">${alerts.map(a => `<div class="admin-alert" data-kind="${a.kind}"><i class="mark-alert"></i><span><b>${esc(a.title)}</b><small>${esc(a.body)}</small></span></div>`).join('')}</aside>`;
 }
 function notificationButton(){
   if(S.tv || S.role === 'guest' || !('Notification' in window)) return '';
@@ -837,6 +946,10 @@ function teamTurnNotice(){
     <span class="turn-mark">${m.status === 'ready' ? 'Nå' : 'Bane ' + m.court}</span>
     <span><b>${esc(title)}</b><small>${esc(S.teamName)}${rival ? ` mot ${esc(rival)}` : ''}</small></span>
   </aside>`;
+}
+function finishedNotice(){
+  if(S.t.phase !== 'finished' || S.tv) return '';
+  return `<aside class="turn-call" role="status"><span class="turn-mark">Ferdig</span><span><b>Turneringen er avsluttet</b><small>Se vinnerne og sluttresultatene under Knockout.</small></span></aside>`;
 }
 
 let wakeLock = null;
@@ -865,7 +978,7 @@ function wakeLockButton(){
 
 let finishingExpired = false;
 async function finishExpiredMatches(){
-  if(finishingExpired || !canAct() || !S.code) return;
+  if(finishingExpired || !isAdmin() || !S.code) return;
   finishingExpired = true;
   try {
     const { data } = await sb.rpc('kubb_finish_expired_matches', { p_code:S.code });
@@ -909,7 +1022,7 @@ function paint(){
   who.onclick = () => S.role === 'guest' ? location.reload() : askSignOut();
 
   const v = $('#view');
-  v.innerHTML = teamTurnNotice() + (
+  v.innerHTML = finishedNotice() + teamTurnNotice() + (
     S.tab === 'courts'  ? viewCourts()  :
     S.tab === 'groups'  ? viewGroups()  :
     S.tab === 'playoff' ? viewPlayoff() : viewAdmin()
@@ -928,8 +1041,9 @@ function wire(){
       resume:  () => isAdmin() && rpc('kubb_resume_match', { p_match:id }),
       finish:  () => isAdmin() && sheetResult(id),
       edit:    () => sheetResult(id, true),
-      reopen:  () => rpc('kubb_reopen_match', { p_match:id }, 'Kampen er åpnet igjen'),
-      advance: () => rpc('kubb_admin_advance_tournament', {}, 'Turneringen er oppdatert'),
+      reopen:  () => isAdmin() && confirmReopen(id),
+      phase:   () => isAdmin() && confirmPhase(n.dataset.action),
+      undo:    () => isAdmin() && confirmUndo(),
       choose:  () => isAdmin() && sheetChooseCourt(Number(n.dataset.court)),
       notify:  () => enableNotifications(),
       awake:   () => toggleWakeLock(),
@@ -943,8 +1057,7 @@ function wire(){
       begin:   () => ask('Trekk grupper?',
                   'Lagene trekkes tilfeldig i fire puljer. A- og B-sluttspilltrærne blir synlige med én gang.',
                   'Trekk grupper', () => rpc('kubb_admin_generate_groups', {}, 'Puljene er trukket — gruppespillet og sluttspilltrærne er klare')),
-      wipe:    () => ask('Nullstille alt?', 'Lag, koder, kamper og resultater slettes. Dette kan ikke angres.',
-                  'Slett alt', () => rpc('kubb_admin_reset', {}, 'Alt er nullstilt'), true),
+      wipe:    () => confirmFullReset(),
       out:     () => askSignOut()
     }[a] || (()=>{}))();
   });
@@ -954,7 +1067,12 @@ function wire(){
 }
 
 /* ---------- baner ---------- */
-const onCourt = c => S.matches.find(m => m.court === c && ['ready','live','paused'].includes(m.status));
+function courtState(c){
+  const assigned = S.matches.filter(m => m.court === c && ['ready','live','paused'].includes(m.status));
+  const active = assigned.find(m => ['live','paused'].includes(m.status));
+  const ready = assigned.find(m => m.status === 'ready');
+  return { current:active || ready || null, next:active ? ready || null : null };
+}
 function viewCourts(){
   const n = S.t.num_courts || 6;
   if(!S.matches.length){
@@ -963,7 +1081,7 @@ function viewCourts(){
                 : 'Arrangøren har ikke satt opp kampene ennå. Siden oppdaterer seg av seg selv.',
       isAdmin() ? `<button class="btn primary" data-do="teams">Legg inn lag</button>` : '');
   }
-  let h = '';
+  let h = adminAlertPanel();
   h += S.tv ? '' : notificationButton() + wakeLockButton() + `<button class="btn quiet sm" data-do="tv" aria-pressed="false">Kun oversikt</button>`;
   if(S.tv){
     const cols = n <= 2 ? n : n <= 4 ? 2 : n <= 9 ? 3 : n <= 16 ? 4 : 5;
@@ -972,7 +1090,7 @@ function viewCourts(){
   const order = [];
   for(let c = 1; c <= n; c++) order.push(c);
   h += `<div class="courts">`;
-  order.forEach(c => { h += courtCard(c, onCourt(c)); });
+  order.forEach(c => { const state = courtState(c); h += courtCard(c, state.current, state.next); });
   h += `</div>`;
 
   const queue = S.matches.filter(m => m.status === 'queued' && m.team_a && m.team_b).slice(0,5);
@@ -983,7 +1101,7 @@ function viewCourts(){
   return h;
 }
 
-function courtCard(c, m){
+function courtCard(c, m, next){
   if(S.tv) return overviewCourtCard(c, m);
   if(!m){
     return `<article class="court" data-state="free">
@@ -1030,9 +1148,18 @@ function courtCard(c, m){
       </div>
     </div>
     <div class="track"><i data-track="${m.id}"></i></div>
+    ${running ? courtNextStrip(c, next) : ''}
     ${!isAdmin() && m.status === 'ready' ? '<div class="court-next">Arrangøren starter kampen når lagene er klare.</div>' : ''}
     ${actions ? `<div class="court-actions">${actions}</div>` : ''}
   </article>`;
+}
+
+function courtNextStrip(c, next){
+  if(next){
+    const a = tName(next.team_a) || '?', b = tName(next.team_b) || '?';
+    return `<div class="court-next assigned"><span><small>Neste på bane ${c}</small><b>${esc(a)} – ${esc(b)}</b></span>${isAdmin() ? `<button class="btn sm quiet" data-do="choose" data-court="${c}">Endre</button>` : ''}</div>`;
+  }
+  return isAdmin() ? `<div class="court-next assigned"><span><small>Neste på bane ${c}</small><b>Ikke valgt ennå</b></span><button class="btn sm quiet" data-do="choose" data-court="${c}">Velg</button></div>` : '';
 }
 
 function overviewCourtCard(c, m){
@@ -1263,7 +1390,7 @@ function viewPlayoff(){
       rest ? `${rest} kamper gjenstår i første gruppespill.`
            : finalRest ? `${finalRest} kamper gjenstår i A- og B-gruppespillet.`
            : 'Begge gruppespill er ferdige. Utslagstrærne settes opp automatisk.',
-      isAdmin() && !rest ? `<button class="btn primary" data-do="advance">Gå videre nå</button>` : '');
+      '');
   }
   const order = ['r16','qf','sf','final','bronze'];
   let h = '';
@@ -1291,9 +1418,58 @@ function viewPlayoff(){
 }
 
 /* ---------- arrangør ---------- */
+const PHASE_NO = { setup:0, group:1, group_review:2, final_groups:3, semifinal_review:4, knockout:5, finished:6 };
+function qualificationLists(kind){
+  if(kind === 'groups'){
+    const rows = S.standings.filter(s => (s.stage || 'group') === 'group').sort((a,b) => String(a.grp).localeCompare(String(b.grp)) || a.pos - b.pos);
+    return { a:rows.filter(r => r.pos <= 2), b:rows.filter(r => r.pos > 2), aTitle:'A-gruppespill', bTitle:'B-gruppespill' };
+  }
+  return {
+    a:S.standings.filter(s => s.stage === 'a_group' && s.pos <= 4).sort((a,b) => a.pos - b.pos),
+    b:S.standings.filter(s => s.stage === 'b_group' && s.pos <= 4).sort((a,b) => a.pos - b.pos),
+    aTitle:'A-semifinaler', bTitle:'B-semifinaler'
+  };
+}
+function qualifierGrid(kind){
+  const q = qualificationLists(kind);
+  const list = (title, rows) => `<div class="qualifier-list"><strong>${esc(title)}</strong>${rows.map(r => `<span>${kind === 'groups' ? `${esc(r.grp)}${r.pos} · ` : `${r.pos}. `}${esc(r.name)}</span>`).join('') || '<span>Ikke avgjort</span>'}</div>`;
+  return `<div class="qualifier-grid">${list(q.aTitle, q.a)}${list(q.bTitle, q.b)}</div>`;
+}
+function phaseControl(){
+  const phase = S.t.phase || 'setup';
+  const no = PHASE_NO[phase] ?? 0;
+  const groupRest = S.matches.filter(m => m.stage === 'group' && m.status !== 'finished').length;
+  const finalRest = S.matches.filter(m => ['a_group','b_group'].includes(m.stage) && m.status !== 'finished').length;
+  const knockoutRest = S.matches.filter(m => /^[ab]_(r\d+|qf|sf|final|bronze)$/.test(m.stage) && m.team_a && m.team_b && m.status !== 'finished').length;
+  let title = 'Før start', body = 'Legg inn lagene og trekk puljene.', extra = '', action = '', actionLabel = '', disabled = false;
+  if(phase === 'group'){
+    title = 'Første gruppespill'; body = groupRest ? `${groupRest} kamper gjenstår før tabellene kan låses.` : 'Alle kampene er ferdige. Lås tabellene før A- og B-lagene kontrolleres.';
+    action = 'close_group'; actionLabel = 'Avslutt første gruppespill'; disabled = groupRest > 0;
+  } else if(phase === 'group_review'){
+    title = 'Kontroller A- og B-lag'; body = 'De to beste i hver første pulje går til A. Kontroller listen før kampene opprettes.';
+    extra = qualifierGrid('groups'); action = 'start_final_groups'; actionLabel = 'Start A-/B-gruppespill';
+  } else if(phase === 'final_groups'){
+    title = 'A-/B-gruppespill'; body = finalRest ? `${finalRest} kamper gjenstår før semifinalistene kan kontrolleres.` : 'Begge gruppespill er ferdige. Kontroller de fire beste i hver pulje.';
+    action = 'review_semifinalists'; actionLabel = 'Kontroller semifinalister'; disabled = finalRest > 0;
+  } else if(phase === 'semifinal_review'){
+    title = 'Kontroller semifinalister'; body = 'De fire beste i A og B går direkte til hvert sitt semifinaletre.';
+    extra = qualifierGrid('semis'); action = 'start_knockout'; actionLabel = 'Start knockout';
+  } else if(phase === 'knockout'){
+    title = 'Knockout'; body = knockoutRest ? `${knockoutRest} startklare knockoutkamper gjenstår.` : 'Finaler og bronsefinaler er ferdige. Turneringen kan avsluttes.';
+    action = 'finish_tournament'; actionLabel = 'Avslutt turneringen'; disabled = knockoutRest > 0;
+  } else if(phase === 'finished'){
+    title = 'Turneringen er ferdig'; body = 'Resultatene er låst og vinnerne står i knockoutvisningen.';
+  }
+  const line = Array.from({length:6}, (_, i) => `<i class="${i + 1 < no ? 'done' : i + 1 === no ? 'now' : ''}"></i>`).join('');
+  return `<section class="phase-card" aria-labelledby="phase-title"><header><div><h2 id="phase-title">${esc(title)}</h2><p>${esc(body)}</p></div><span class="phase-badge">Trinn ${no}/6</span></header><div class="phase-line" aria-hidden="true">${line}</div>${extra}${action ? `<button class="btn primary block" data-do="phase" data-action="${action}" ${disabled ? 'disabled' : ''}>${esc(actionLabel)}</button>` : ''}</section>`;
+}
+function shortTime(value){
+  const d = new Date(value), diff = Math.max(0, Math.round((svrNow() - d.getTime()) / 60000));
+  return diff < 1 ? 'nå' : diff < 60 ? `${diff} min` : d.toLocaleTimeString('nb-NO', { hour:'2-digit', minute:'2-digit' });
+}
+
 function viewAdmin(){
-  const total = S.matches.length;
-  const done = S.matches.filter(m => m.status === 'finished').length;
+  const progress = progressSummary();
   const isBeforeStart = S.t.phase === 'setup';
   const groupCount = new Set(S.teams.map(t => t.grp)).size;
   const teamSummary = S.teams.length ? `${S.teams.length} lag${groupCount > 1 ? ` i ${groupCount} puljer` : ' klare for trekning'}` : 'Fyll inn opptil 16 lag';
@@ -1302,12 +1478,16 @@ function viewAdmin(){
       <span class="tx"><b>${title}</b><small>${sub}</small></span>
       <span class="arw">${svg(ICON.chev,'width:15px;height:15px;stroke-width:2')}</span></button>`;
 
-  return `<div class="stats">
+  const latest = S.audit[0];
+  return `${adminAlertPanel()}<div class="stats">
       <div><b class="num">${S.teams.length}</b><small>lag</small></div>
-      <div><b class="num">${done}/${total}</b><small>kamper spilt</small></div>
+      <div><b class="num">${progress.done}/${progress.total}</b><small>kamper spilt</small></div>
       <div><b class="num">${S.t.num_courts}</b><small>baner</small></div>
       <div><b class="num">${Math.round(S.t.match_seconds/60)}</b><small>min/kamp</small></div>
     </div>
+    <div class="progress-card"><div class="progress-copy"><b>Turneringsfremdrift</b><span>${progress.pct}%</span></div><div class="progress-track"><i style="transform:scaleX(${progress.pct / 100})"></i></div></div>
+    <div class="eyebrow">Turneringskontroll</div>
+    ${phaseControl()}
     <div class="eyebrow">Før start</div>
     <div class="rows">
       ${row('teams', ICON.people, 'Lag og puljer', teamSummary)}
@@ -1318,8 +1498,9 @@ function viewAdmin(){
     <div class="eyebrow">Under turneringen</div>
     <div class="rows">
       ${row('tv', ICON.tv, 'Kun oversikt', 'Bare bane, lag og klokke i fullskjerm')}
-      ${!isBeforeStart ? row('advance', ICON.cup, 'Oppdater turneringen', 'Fyller neste trinn når alle kampene der er ferdige') : ''}
+      ${latest?.can_undo ? row('undo', ICON.chev, 'Angre siste handling', latest.label) : ''}
     </div>
+    ${S.audit.length ? `<div class="eyebrow">Siste endringer</div><div class="activity">${S.audit.slice(0,6).map(a => `<div class="activity-row"><b>${esc(a.label)}</b><time>${esc(shortTime(a.created_at))}</time><small>${esc(a.actor_name)}</small></div>`).join('')}</div>` : ''}
     <div class="eyebrow">Farlig</div>
     <div class="rows">
       ${!isBeforeStart ? row('begin', ICON.play, 'Trekk grupper på nytt', 'Starter første gruppespill på nytt med et nytt, synlig trekk', 'warn') : ''}
@@ -1380,6 +1561,38 @@ function askSignOut(){
   ask('Logge ut?', S.role === 'admin' ? 'Du må skrive inn arrangørkoden igjen for å komme tilbake.' : 'Du må skrive inn lagkoden igjen for å komme tilbake.', 'Logg ut', signOut);
 }
 
+function confirmPhase(action){
+  const copy = {
+    close_group:['Avslutt første gruppespill?', 'Tabellene låses slik at A- og B-lagene kan kontrolleres.', 'Avslutt gruppespillet'],
+    start_final_groups:['Start A-/B-gruppespill?', 'Listen du nettopp kontrollerte brukes til å opprette alle kampene i A og B.', 'Start gruppespillet'],
+    review_semifinalists:['Kontroller semifinalistene?', 'A- og B-tabellene låses før semifinalistene vises.', 'Lås tabellene'],
+    start_knockout:['Start knockout?', 'De fire viste lagene i hver pulje settes inn i semifinaletreet.', 'Start knockout'],
+    finish_tournament:['Avslutt turneringen?', 'Alle resultater låses og turneringen markeres som ferdig.', 'Avslutt turneringen']
+  }[action];
+  if(!copy) return;
+  ask(copy[0], copy[1], copy[2], () => rpc('kubb_admin_phase_action', { p_action:action }, 'Turneringsfasen er oppdatert'));
+}
+function confirmUndo(){
+  const latest = S.audit[0];
+  if(!latest?.can_undo){ toast('Siste handling kan ikke angres', true); return; }
+  ask('Angre siste handling?', latest.label, 'Angre', () => rpc('kubb_admin_undo_last', {}, 'Handlingen er angret'));
+}
+function confirmReopen(id){
+  ask('Gjenåpne kampen?', 'Resultatet fjernes og kampen legges tilbake i køen.', 'Gjenåpne', () => rpc('kubb_reopen_match', { p_match:id }, 'Kampen er åpnet igjen'));
+}
+function confirmFullReset(){
+  ask('Nullstille hele turneringen?', 'Lag, koder, kamper og resultater slettes. Du må bekrefte én gang til.', 'Fortsett', sheetResetConfirm, true);
+}
+function sheetResetConfirm(){
+  const { box, close } = sheet(`<h2>Siste bekreftelse</h2><p class="lede">Skriv <b>NULLSTILL</b> for å slette hele turneringen.</p>
+    <label class="field"><span>Bekreftelse</span><input id="reset-word" autocomplete="off" autocapitalize="characters" placeholder="NULLSTILL"></label>
+    <div class="cluster" style="margin-top:20px"><button class="btn" data-x="cancel">Avbryt</button><button class="btn danger" data-x="reset" disabled>Slett alt</button></div>`);
+  const input = box.querySelector('#reset-word'), reset = box.querySelector('[data-x="reset"]');
+  input.oninput = () => { reset.disabled = input.value.trim().toUpperCase() !== 'NULLSTILL'; };
+  box.querySelector('[data-x="cancel"]').onclick = close;
+  reset.onclick = async () => { const ok = await rpc('kubb_admin_reset', {}, 'Alt er nullstilt'); if(ok) close(); };
+}
+
 function sheetResult(id, editing = false){
   const m = S.matches.find(x => x.id === id); if(!m) return;
   const a = tName(m.team_a) || '?', b = tName(m.team_b) || '?';
@@ -1391,22 +1604,30 @@ function sheetResult(id, editing = false){
     <button class="choice accent" data-r="a"><span><b>${esc(a)}</b><small>3 poeng</small></span></button>
     <button class="choice accent" data-r="b"><span><b>${esc(b)}</b><small>3 poeng</small></span></button>
     ${isGroupStage(m.stage) ? `<button class="choice" data-r="draw"><span><b>Uavgjort</b><small>1 poeng til hvert lag</small></span></button>` : ''}
+    ${editing ? `<button class="btn danger block" data-x="reopen">Gjenåpne kampen</button>` : ''}
     <div style="margin-top:20px"><button class="btn ghost block" data-x="cancel">Avbryt</button></div>`);
 
   box.querySelectorAll('[data-r]').forEach(btn => btn.onclick = () => {
     const res = btn.dataset.r;
     close();
-    rpc(editing ? 'kubb_admin_correct_result' : 'kubb_finish_match', { p_match:id, p_result:res }, editing ? 'Resultatet er oppdatert' : 'Resultat lagret — ny kamp settes på banen');
+    rpc(editing ? 'kubb_admin_correct_result' : 'kubb_finish_match', { p_match:id, p_result:res }, editing ? 'Resultatet er oppdatert' : 'Resultatet er lagret');
   });
+  if(editing) box.querySelector('[data-x="reopen"]').onclick = () => { close(); confirmReopen(id); };
   box.querySelector('[data-x="cancel"]').onclick = close;
 }
 
 function sheetChooseCourt(court){
-  const choices = S.matches.filter(m => m.status === 'queued' && m.team_a && m.team_b);
-  if(!choices.length){ toast('Ingen andre startklare kamper i køen', true); return; }
+  const allChoices = S.matches.filter(m => m.status === 'queued' && m.team_a && m.team_b);
+  const replaceable = S.matches.find(m => m.court === court && m.status === 'ready');
+  const busy = new Set(S.matches
+    .filter(m => ['ready','live','paused'].includes(m.status) && m.id !== replaceable?.id)
+    .flatMap(m => [m.team_a, m.team_b]).filter(Boolean));
+  const choices = allChoices.filter(m => !busy.has(m.team_a) && !busy.has(m.team_b));
+  const hidden = allChoices.length - choices.length;
+  if(!choices.length){ toast(allChoices.length ? 'Alle startklare kamper har et lag som er opptatt' : 'Ingen startklare kamper i køen', true); return; }
   const { box, close } = sheet(`
     <h2>Velg kamp til bane ${court}</h2>
-    <p class="lede">Velg hvilken startklar kamp som skal spilles på denne banen. Arrangøren starter kampen når lagene er klare.</p>
+    <p class="lede">Bare kamper der begge lag er ledige vises.${hidden ? ` ${hidden} ${hidden === 1 ? 'kamp er' : 'kamper er'} skjult på grunn av banekonflikt.` : ''}</p>
     <div class="list">${choices.map(m => `<button class="row-btn" data-pick="${m.id}">
       <span class="tx"><b>${esc(tName(m.team_a) || '?')} – ${esc(tName(m.team_b) || '?')}</b><small>${esc(matchSection(m))}</small></span>
       <span class="arw">${svg(ICON.chev,'width:15px;height:15px;stroke-width:2')}</span>
@@ -1468,28 +1689,29 @@ function sheetTeams(){
 }
 
 async function sheetKeys(){
-  const { data, error } = await sb.rpc('kubb_admin_codes', { p_code: S.code });
+  const { data, error } = await sb.rpc('kubb_admin_codes_v2', { p_code: S.code });
   if(error){ toast(String(error.message), true); return; }
   const rows = data || [];
   const { box, close } = sheet(`
     <h2>Koder</h2>
-    <p class="lede">Én kode per lag. De to første lagene i listen har arrangørtilgang og kan trekke puljer, dele koder og rette resultater.</p>
-    ${rows.length ? `<div class="keys">${rows.map(r => `<div class="key"><small>Pulje ${esc(r.grp)}</small><b>${esc(r.team_name)}</b><i>${esc(r.code)}</i></div>`).join('')}</div>`
+    <p class="lede">Én kode per lag. Lag med arrangørtilgang er tydelig merket.</p>
+    ${rows.length ? `<div class="keys">${rows.map(r => `<div class="key"><small>${r.role === 'admin' ? 'ARRANGØR' : `Pulje ${esc(r.grp)}`}</small><b>${esc(r.team_name)}</b><i>${esc(r.code)}</i></div>`).join('')}</div>`
                   : `<p class="lede">Ingen lag lagt inn ennå.</p>`}
-    <label class="field"><span>Arrangørkode</span>
-      <span class="cluster" style="align-items:stretch"><input id="ac" inputmode="numeric" maxlength="4" value="${esc(S.code)}"><button class="btn" data-x="setac" style="flex:0 0 auto">Bytt</button></span>
-      <small>Fire siffer. Denne gir tilgang til alt oppsett.</small></label>
+    ${S.teamId ? '<p class="lede" style="margin-top:18px">Hovedkoden kan bare byttes når du er logget inn som hovedarrangør.</p>' : `<label class="field"><span>Ny hovedarrangørkode</span>
+      <span class="cluster" style="align-items:stretch"><input id="ac" inputmode="numeric" maxlength="4" placeholder="Fire siffer"><button class="btn" data-x="setac" style="flex:0 0 auto">Bytt</button></span>
+      <small>Hovedkoden er separat fra de to adminlagenes egne koder.</small></label>`}
     <div style="margin-top:20px" class="cluster">
       <button class="btn quiet" data-x="copy">Kopier alle</button>
       <button class="btn" data-x="close">Lukk</button></div>`);
 
   box.querySelector('[data-x="close"]').onclick = close;
   box.querySelector('[data-x="copy"]').onclick = async () => {
-    const txt = rows.map(r => `${r.team_name} (pulje ${r.grp}): ${r.code}`).join('\n');
+    const txt = rows.map(r => `${r.team_name}${r.role === 'admin' ? ' [arrangør]' : ` (pulje ${r.grp})`}: ${r.code}`).join('\n');
     try { await navigator.clipboard.writeText(txt); toast('Kodene er kopiert'); }
     catch(_){ toast('Nettleseren tillot ikke kopiering', true); }
   };
-  box.querySelector('[data-x="setac"]').onclick = async () => {
+  const setCode = box.querySelector('[data-x="setac"]');
+  if(setCode) setCode.onclick = async () => {
     const v = box.querySelector('#ac').value.trim();
     if(!/^\d{4}$/.test(v)){ toast('Arrangørkoden må være fire siffer', true); return; }
     const { error:e2 } = await sb.rpc('kubb_admin_set_admin_code', { p_code:S.code, p_new:v });
