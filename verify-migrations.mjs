@@ -16,7 +16,8 @@ const migrations = [
   '20260730210000_kubb_final_groups_and_courts.sql',
   '20260730220000_kubb_admin_teams_and_fair_draw.sql',
   '20260730230000_kilkast_flexible_groups_and_playoff_tree.sql',
-  '20260730234759_direct_semifinals.sql'
+  '20260730234759_direct_semifinals.sql',
+  '20260731000930_admin_controlled_court_start.sql'
 ];
 
 const assert = (condition, message) => { if (!condition) throw new Error(message); };
@@ -49,6 +50,15 @@ await db.query("select public.kubb_admin_generate_groups('ENDRE_MEG')");
 let count = await scalar("select count(*)::int as n from public.kubb_matches where stage = 'group'");
 assert(count.n === 12, `expected 12 first-group matches, got ${count.n}`);
 
+let readyCount = await scalar("select count(*)::int as n from public.kubb_matches where status = 'ready'");
+assert(readyCount.n === 0, 'matches should not be assigned to courts automatically');
+const firstQueued = await scalar("select id from public.kubb_matches where stage = 'group' and status = 'queued' order by order_no limit 1");
+await db.query('select public.kubb_select_court_match($1, $2, $3)', ['ENDRE_MEG', 1, firstQueued.id]);
+const teamAccess = await scalar("select code from public.kubb_codes where role = 'team' limit 1");
+let teamCouldStart = false;
+try { await db.query('select public.kubb_start_match($1, $2)', [teamAccess.code, firstQueued.id]); teamCouldStart = true; } catch (_) {}
+assert(!teamCouldStart, 'a team code should not be able to start a match');
+
 const alternate = await db.query(`
   select q.id as next_match, r.id as current_match, r.court
   from public.kubb_matches q join public.kubb_matches r on r.status = 'ready'
@@ -71,8 +81,8 @@ await db.query("update public.kubb_matches set started_at = now() - interval '41
 await db.query("select public.kubb_finish_expired_matches('ENDRE_MEG')");
 let expired = await scalar(`select status, result from public.kubb_matches where id = '${expiring.id}'`);
 assert(expired.status === 'finished' && expired.result === 'draw', 'expired group match did not become a draw');
-let replacement = await scalar('select status from public.kubb_matches where court = 1');
-assert(replacement.status === 'ready', 'a new match was not automatically assigned to the freed court');
+let replacement = await db.query('select status from public.kubb_matches where court = 1');
+assert(replacement.rows.length === 0, 'a new match was automatically assigned to the freed court');
 
 const decided = await scalar("select id, team_a, team_b from public.kubb_matches where stage = 'group' and status <> 'finished' limit 1");
 let beforePoints = await db.query('select team_id, points from public.kubb_standings where stage = $1 and team_id in ($2, $3)', ['group', decided.team_a, decided.team_b]);

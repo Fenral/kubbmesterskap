@@ -923,14 +923,14 @@ function wire(){
   $('#view').querySelectorAll('[data-do]').forEach(n => n.onclick = () => {
     const a = n.dataset.do, id = n.dataset.id;
     ({
-      start:   () => countdown(id),
-      pause:   () => rpc('kubb_pause_match',  { p_match:id }),
-      resume:  () => rpc('kubb_resume_match', { p_match:id }),
-      finish:  () => sheetResult(id),
+      start:   () => isAdmin() && countdown(id),
+      pause:   () => isAdmin() && rpc('kubb_pause_match',  { p_match:id }),
+      resume:  () => isAdmin() && rpc('kubb_resume_match', { p_match:id }),
+      finish:  () => isAdmin() && sheetResult(id),
       edit:    () => sheetResult(id, true),
       reopen:  () => rpc('kubb_reopen_match', { p_match:id }, 'Kampen er åpnet igjen'),
       advance: () => rpc('kubb_admin_advance_tournament', {}, 'Turneringen er oppdatert'),
-      choose:  () => sheetChooseCourt(Number(n.dataset.court)),
+      choose:  () => isAdmin() && sheetChooseCourt(Number(n.dataset.court)),
       notify:  () => enableNotifications(),
       awake:   () => toggleWakeLock(),
       filter:  () => { S.filter = id; paint(); },
@@ -955,28 +955,11 @@ function wire(){
 
 /* ---------- baner ---------- */
 const onCourt = c => S.matches.find(m => m.court === c && ['ready','live','paused'].includes(m.status));
-function nextForCourt(c, current){
-  const busy = new Set();
-  S.matches.filter(m => ['ready','live','paused'].includes(m.status) && m.id !== current?.id).forEach(m => {
-    if(m.team_a) busy.add(m.team_a);
-    if(m.team_b) busy.add(m.team_b);
-  });
-  return S.matches
-    .filter(m => m.status === 'queued' && m.team_a && m.team_b && !busy.has(m.team_a) && !busy.has(m.team_b))
-    .sort((a,b) => (a.order_no || 0) - (b.order_no || 0))[0] || null;
-}
-function nextHint(c, current){
-  const m = nextForCourt(c, current);
-  if(!m) return '';
-  const mine = m.team_a === S.teamId || m.team_b === S.teamId;
-  return `<div class="court-next">Neste: <b>${esc(tName(m.team_a) || '?')} – ${esc(tName(m.team_b) || '?')}</b>${mine ? ' · ditt lag' : ''}</div>`;
-}
-
 function viewCourts(){
   const n = S.t.num_courts || 6;
   if(!S.matches.length){
     return blank('Ingen kamper ennå',
-      isAdmin() ? 'Legg inn lagene og sett opp gruppespillet, så fyller banene seg selv.'
+      isAdmin() ? 'Legg inn lagene og trekk gruppene. Deretter velger arrangøren kamp for hver bane.'
                 : 'Arrangøren har ikke satt opp kampene ennå. Siden oppdaterer seg av seg selv.',
       isAdmin() ? `<button class="btn primary" data-do="teams">Legg inn lag</button>` : '');
   }
@@ -994,7 +977,7 @@ function viewCourts(){
 
   const queue = S.matches.filter(m => m.status === 'queued' && m.team_a && m.team_b).slice(0,5);
   if(queue.length){
-    h += `<div class="queue-block"><div class="eyebrow">Neste ut <small>${queue.length} av ${S.matches.filter(m => m.status === 'queued').length} i kø</small></div>
+    h += `<div class="queue-block"><div class="eyebrow">Startklare kamper <small>${queue.length} av ${S.matches.filter(m => m.status === 'queued').length} i kø</small></div>
       <div class="list">${queue.map(matchRow).join('')}</div></div>`;
   }
   return h;
@@ -1005,7 +988,9 @@ function courtCard(c, m){
   if(!m){
     return `<article class="court" data-state="free">
       <div class="court-top"><span class="court-no">${c}</span><span class="cap">Bane ${c}</span></div>
-      <div class="free">Ledig — neste kamp settes hit automatisk</div></article>`;
+      <div class="free">${isAdmin() ? 'Velg en kamp til banen' : 'Arrangøren velger neste kamp'}</div>
+      ${isAdmin() ? `<div class="court-actions"><button class="btn primary" data-do="choose" data-court="${c}">Velg kamp</button></div>` : ''}
+    </article>`;
   }
   const a = tName(m.team_a) || m.source_a || '?';
   const b = tName(m.team_b) || m.source_b || '?';
@@ -1015,7 +1000,7 @@ function courtCard(c, m){
   S.seenOnCourt[c] = m.id;
 
   let actions = '';
-  if(!S.tv && canAct()){
+  if(!S.tv && isAdmin()){
     if(m.status === 'ready')
       actions = `<button class="btn primary" data-do="start" data-id="${m.id}">${svg(ICON.play,'width:15px;height:15px;fill:currentColor;stroke:none')}Start kampen</button>` +
         (isAdmin() ? `<button class="btn quiet" data-do="choose" data-court="${c}">Annen kamp</button>` : '');
@@ -1045,7 +1030,7 @@ function courtCard(c, m){
       </div>
     </div>
     <div class="track"><i data-track="${m.id}"></i></div>
-    ${nextHint(c, m)}
+    ${!isAdmin() && m.status === 'ready' ? '<div class="court-next">Arrangøren starter kampen når lagene er klare.</div>' : ''}
     ${actions ? `<div class="court-actions">${actions}</div>` : ''}
   </article>`;
 }
@@ -1421,7 +1406,7 @@ function sheetChooseCourt(court){
   if(!choices.length){ toast('Ingen andre startklare kamper i køen', true); return; }
   const { box, close } = sheet(`
     <h2>Velg kamp til bane ${court}</h2>
-    <p class="lede">Velg en uspilt kamp dersom kampen som står klar ikke kan starte. Den opprinnelige kampen går tilbake i køen.</p>
+    <p class="lede">Velg hvilken startklar kamp som skal spilles på denne banen. Arrangøren starter kampen når lagene er klare.</p>
     <div class="list">${choices.map(m => `<button class="row-btn" data-pick="${m.id}">
       <span class="tx"><b>${esc(tName(m.team_a) || '?')} – ${esc(tName(m.team_b) || '?')}</b><small>${esc(matchSection(m))}</small></span>
       <span class="arw">${svg(ICON.chev,'width:15px;height:15px;stroke-width:2')}</span>
