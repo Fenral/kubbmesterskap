@@ -21,7 +21,8 @@ const migrations = [
   '20260731120000_admin_control_and_tournament_phases.sql',
   '20260731160000_remaining_admin_controls.sql',
   '20260731210000_fixed_format_shootouts_and_withdrawals.sql',
-  '20260731213000_tiebreak_invalidation.sql'
+  '20260731213000_tiebreak_invalidation.sql',
+  '20260731220000_simple_match_change_queue.sql'
 ];
 
 const CODE = 'ENDRE_MEG';
@@ -105,13 +106,24 @@ await db.query('select public.kubb_select_court_match($1,$2,$3)', [CODE, 1, firs
 let teamCouldStart = false;
 try { await db.query('select public.kubb_start_match($1,$2)', [regenerated.code, first.id]); teamCouldStart = true; } catch (_) {}
 assert(!teamCouldStart, 'a normal team code could start a match');
-await db.query('select public.kubb_admin_move_court_match($1,$2,$3)', [CODE, first.id, 2]);
-let selected = await scalar('select status, court from public.kubb_matches where id = $1', [first.id]);
-assert(selected.status === 'ready' && selected.court === 2, 'ready match was not moved');
-await db.query('select public.kubb_admin_release_court_match($1,$2)', [CODE, first.id]);
-selected = await scalar('select status, court from public.kubb_matches where id = $1', [first.id]);
-assert(selected.status === 'queued' && selected.court === null, 'not-ready match was not returned to queue');
-
+const oldControls = await scalar(`select
+  has_function_privilege('anon','public.kubb_admin_move_court_match(text,uuid,integer)','EXECUTE') as can_move,
+  has_function_privilege('anon','public.kubb_admin_release_court_match(text,uuid)','EXECUTE') as can_release`);
+assert(!oldControls.can_move && !oldControls.can_release, 'old move/release operations are still public');
+const alternate = await scalar("select id from public.kubb_matches where stage = 'group' and status = 'queued' order by order_no limit 1");
+await db.query('select public.kubb_select_court_match($1,$2,$3)', [CODE, 1, alternate.id]);
+let delayed = await scalar('select status, court, extract(epoch from (deferred_until - now()))::int wait_seconds from public.kubb_matches where id = $1', [first.id]);
+assert(delayed.status === 'queued' && delayed.court === null && delayed.wait_seconds >= 599 && delayed.wait_seconds <= 601, 'replaced match did not receive a ten-minute queue pause');
+let earlySelectionWorked = false;
+try { await db.query('select public.kubb_select_court_match($1,$2,$3)', [CODE, 2, first.id]); earlySelectionWorked = true; } catch (_) {}
+assert(!earlySelectionWorked, 'a delayed match could be selected before ten minutes');
+await db.query("update public.kubb_matches set deferred_until = now() - interval '1 second' where id = $1", [first.id]);
+await db.query('select public.kubb_select_court_match($1,$2,$3)', [CODE, 1, first.id]);
+let selected = await scalar('select status, court, deferred_until from public.kubb_matches where id = $1', [first.id]);
+assert(selected.status === 'ready' && selected.court === 1 && selected.deferred_until === null, 'expired queue pause did not make the match selectable again');
+await db.query('select public.kubb_admin_undo_last($1)', [CODE]);
+selected = await scalar('select status, court from public.kubb_matches where id = $1', [alternate.id]);
+assert(selected.status === 'ready' && selected.court === 1, 'undo did not restore the previously selected match');
 await db.query('select public.kubb_select_court_match($1,$2,$3)', [CODE, 1, first.id]);
 await db.query('select public.kubb_start_match($1,$2)', [CODE, first.id]);
 await db.query('select public.kubb_admin_add_match_time($1,$2,5)', [CODE, first.id]);
@@ -124,6 +136,9 @@ await db.query('select public.kubb_finish_expired_matches($1)', [CODE]);
 expired = await scalar('select status, result from public.kubb_matches where id = $1', [first.id]);
 assert(expired.status === 'finished' && expired.result === 'draw', 'expired group match did not become a draw');
 
+// The replacement above intentionally gives the displaced match a ten-minute
+// pause. Expire test-only pauses before completing the rest of the tournament.
+await db.query("update public.kubb_matches set deferred_until = now() - interval '1 second' where deferred_until > now()");
 await finishStageAsDraws(['group']);
 let phase = await scalar('select phase from public.kubb_tournament where id = 1');
 assert(phase.phase === 'group', 'group completion advanced without admin approval');

@@ -23,7 +23,8 @@ const makeMatch = (n, court, status, a, b, minutes, label, readyMinutes = 0) => 
   pause_accum:0, extra_seconds:n === 1 ? 300 : 0, ended_at:null, result:null, score_a:null, score_b:null,
   feeds_match:null, feeds_side:null, loser_feeds_match:null, loser_feeds_side:null,
   created_at:new Date(now - 3600000).toISOString(),
-  ready_at:readyMinutes ? new Date(now - readyMinutes * 60000).toISOString() : null
+  ready_at:readyMinutes ? new Date(now - readyMinutes * 60000).toISOString() : null,
+  deferred_until:null
 });
 const matches = [
   makeMatch(1, 1, 'live',   0,  1, 12,   'Pulje A · runde 1'),
@@ -38,6 +39,7 @@ const matches = [
 matches[1].stage = 'a_sf';
 matches[1].grp = null;
 matches[1].label = 'A-sluttspill · Semifinale 1';
+matches[7].deferred_until = new Date(now - 60000).toISOString();
 const standings = teams.map((team, i) => ({
   stage:'group', grp:team.grp, team_id:team.id, name:team.name,
   played:i < 8 ? 2 : 1, wins:i % 3, draws:i % 2, losses:0,
@@ -89,7 +91,14 @@ try {
   if (await page.locator('.admin-alert').count() !== 2) throw new Error('Forventet varsler for utløpt tid og forsinket start');
   if (!await page.locator('.turn-call').getByText(/Dere spiller på bane 1/).count()) throw new Error('Vedvarende banevarsel mangler');
   if (await page.getByRole('button', { name:'+5 min', exact:true }).count() !== 4) throw new Error('Ekstra tid mangler på pågående kamper');
-  if (!await page.getByRole('button', { name:'Flytt / endre', exact:true }).count()) throw new Error('Flytting av en klar kamp mangler');
+  if (await page.getByRole('button', { name:'Flytt / endre', exact:true }).count()) throw new Error('Flytting til en annen bane vises fortsatt');
+  if (!await page.getByRole('button', { name:'Endre kamp', exact:true }).count()) throw new Error('Endre kamp mangler');
+  await page.locator(`#c-${matchId(5)}`).getByRole('button', { name:'Endre kamp', exact:true }).click();
+  if (!await page.locator('.sheet').getByRole('heading', { name:'Velg ny kamp til bane 5' }).count()) throw new Error('Endre kamp åpner ikke kampkøen direkte');
+  if (await page.locator('.sheet').getByText(/Flytt til bane|Legg kampen tilbake i køen/).count()) throw new Error('Overflødige flytte- eller køkontroller vises fortsatt');
+  const queuedTeams = await page.locator('.sheet [data-pick] b').allTextContents();
+  if (queuedTeams[0] !== 'Kongen står – Siste pinne') throw new Error(`Utsatt kamp ligger ikke først i køen: ${queuedTeams.join(', ')}`);
+  await page.locator('.sheet').getByRole('button', { name:'Avbryt' }).click();
   await page.locator(`#c-${matchId(2)}`).getByRole('button', { name:'Avslutt', exact:true }).click();
   if (!await page.locator('.sheet').getByText(/Straffekast · velg vinner/).count()) throw new Error('Utløpt knockoutkamp viser ikke straffekast');
   if (await page.locator('.sheet').getByRole('button', { name:/Uavgjort/ }).count()) throw new Error('Knockoutkamp kan registreres uavgjort');
@@ -110,6 +119,15 @@ try {
   await page.getByRole('button', { name:'Kun oversikt' }).click();
   const tvNumbers = await page.locator('.court-no').allTextContents();
   if (tvNumbers.join(',') !== '1,2,3,4,5') throw new Error('Oversiktsmodus endrer banerekkefølgen');
+  const exitButton = await page.locator('.tv-exit').boundingBox();
+  const firstCourt = await page.locator('.court.overview').first().boundingBox();
+  if (exitButton && firstCourt && exitButton.y + exitButton.height > firstCourt.y) throw new Error('Knappen for å avslutte oversikten ligger over et banekort');
+  const overlap = await page.locator('.court.overview:not([data-state="free"])').evaluateAll(cards => cards.some(card => {
+    const timer = card.querySelector('.timer .t')?.getBoundingClientRect();
+    const names = [...card.querySelectorAll('.side b')].map(name => name.getBoundingClientRect());
+    return timer && names.length && timer.top < Math.max(...names.map(name => name.bottom)) + 8;
+  }));
+  if (overlap) throw new Error('Lagnavn og klokke overlapper i mobilens oversiktsmodus');
   const tvText = await page.locator('#view').innerText();
   if (/Start kampen|Pause|Avslutt|Velg kamp/.test(tvText)) throw new Error('Oversiktsmodus viser kampkontroller');
   if (errors.length) throw new Error(`Nettleserfeil: ${errors.join(' | ')}`);

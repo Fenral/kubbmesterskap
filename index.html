@@ -577,7 +577,7 @@ tr.stand-click:hover td,tr.stand-click:focus-visible td{background:var(--surface
 /* ---------------- storskjerm ---------------- */
 body.tv{padding-bottom:0;overflow:hidden}
 body.tv .nav,body.tv .head{display:none}
-body.tv main{max-width:none;padding:clamp(14px,2vw,30px);height:100dvh;display:flex;flex-direction:column;gap:0}
+body.tv main{max-width:none;padding:clamp(14px,2vw,30px);padding-top:58px;height:100dvh;display:flex;flex-direction:column;gap:0}
 body.tv .tvhead{display:flex;align-items:baseline;gap:16px;margin-bottom:clamp(12px,1.6vw,22px)}
 body.tv .tvhead h1{font-size:clamp(20px,2.6vw,38px);letter-spacing:-.028em}
 body.tv .tvhead .sub{font-size:clamp(12px,1.1vw,16px);color:var(--ink-3)}
@@ -594,10 +594,11 @@ body.tv .sides{gap:6px}
 body.tv .court-actions,body.tv .queue-block{display:none}
 body.tv .court.overview .court-top{padding:clamp(9px,1vw,15px) clamp(11px,1.2vw,18px)}
 body.tv .court.overview .court-top .cap{font-size:clamp(13px,1.15vw,18px);color:var(--ink)}
-body.tv .court.overview .court-body{padding:clamp(16px,2vw,34px);gap:clamp(14px,2vw,34px)}
-body.tv .court.overview .sides{gap:clamp(8px,.8vw,14px)}
-body.tv .court.overview .side b{font-size:clamp(20px,2.2vw,40px);font-weight:640}
-body.tv .court.overview .timer .t{font-size:clamp(42px,5.8vw,92px)}
+body.tv .court.overview .court-body{padding:clamp(14px,2vw,34px);gap:clamp(12px,1.6vw,24px);flex-direction:column;align-items:stretch;justify-content:center;overflow:hidden}
+body.tv .court.overview .sides{flex:0 1 auto;width:100%;gap:clamp(7px,.8vw,14px)}
+body.tv .court.overview .side b{font-size:clamp(18px,2.2vw,40px);font-weight:640;overflow-wrap:anywhere;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden}
+body.tv .court.overview .timer{flex:0 0 auto;width:100%;text-align:left;justify-items:start}
+body.tv .court.overview .timer .t{font-size:clamp(40px,5.8vw,92px)}
 body.tv .court.overview .overview-free{display:grid;place-items:center;flex:1;padding:var(--s5);font-size:clamp(18px,2vw,32px);color:var(--ink-3)}
 body.tv .timer .t{font-size:clamp(34px,4.6vw,76px)}
 body.tv .side b{font-size:clamp(15px,1.55vw,26px)}
@@ -1045,7 +1046,7 @@ function wire(){
       finish:  () => isAdmin() && sheetResult(id),
       edit:    () => sheetResult(id, true),
       reopen:  () => isAdmin() && confirmReopen(id),
-      manageReady: () => isAdmin() && sheetManageReadyMatch(id),
+      manageReady: () => isAdmin() && sheetChooseCourt(Number(n.dataset.court)),
       phase:   () => isAdmin() && confirmPhase(n.dataset.action),
       tiebreak:() => isAdmin() && sheetTiebreak(n.dataset.stage, n.dataset.group),
       undo:    () => isAdmin() && confirmUndo(),
@@ -1079,6 +1080,20 @@ function courtState(c){
   const ready = assigned.find(m => m.status === 'ready');
   return { current:active || ready || null, next:active ? ready || null : null };
 }
+function rankedQueuedMatches(){
+  const now = svrNow();
+  const priority = match => {
+    if(!match.deferred_until) return [1, match.order_no || 0];
+    const due = Date.parse(match.deferred_until);
+    return due <= now ? [0, due] : [2, due];
+  };
+  return S.matches
+    .filter(match => match.status === 'queued' && match.team_a && match.team_b)
+    .sort((a,b) => {
+      const pa = priority(a), pb = priority(b);
+      return pa[0] - pb[0] || pa[1] - pb[1] || (a.order_no || 0) - (b.order_no || 0);
+    });
+}
 function viewCourts(){
   const n = S.t.num_courts || 6;
   if(!S.matches.length){
@@ -1099,7 +1114,7 @@ function viewCourts(){
   order.forEach(c => { const state = courtState(c); h += courtCard(c, state.current, state.next); });
   h += `</div>`;
 
-  const queue = S.matches.filter(m => m.status === 'queued' && m.team_a && m.team_b).slice(0,5);
+  const queue = rankedQueuedMatches().slice(0,5);
   if(queue.length){
     h += `<div class="queue-block"><div class="eyebrow">Startklare kamper <small>${queue.length} av ${S.matches.filter(m => m.status === 'queued').length} i kø</small></div>
       <div class="list">${queue.map(matchRow).join('')}</div></div>`;
@@ -1127,7 +1142,7 @@ function courtCard(c, m, next){
   if(!S.tv && isAdmin()){
     if(m.status === 'ready')
       actions = `<button class="btn primary" data-do="start" data-id="${m.id}">${svg(ICON.play,'width:15px;height:15px;fill:currentColor;stroke:none')}Start kampen</button>` +
-        `<button class="btn quiet" data-do="manageReady" data-id="${m.id}">Flytt / endre</button>`;
+        `<button class="btn quiet" data-do="manageReady" data-id="${m.id}" data-court="${c}">Endre kamp</button>`;
     else if(m.status === 'live')
       actions = `<button class="btn quiet" data-do="pause" data-id="${m.id}">Pause</button>
                  <button class="btn quiet" data-do="extra" data-id="${m.id}">+5 min</button>
@@ -1710,49 +1725,30 @@ function sheetResult(id, editing = false){
 }
 
 function sheetChooseCourt(court){
-  const allChoices = S.matches.filter(m => m.status === 'queued' && m.team_a && m.team_b);
   const replaceable = S.matches.find(m => m.court === court && m.status === 'ready');
+  const choices = rankedQueuedMatches();
   const busy = new Set(S.matches
     .filter(m => ['ready','live','paused'].includes(m.status) && m.id !== replaceable?.id)
     .flatMap(m => [m.team_a, m.team_b]).filter(Boolean));
-  const choices = allChoices.filter(m => !busy.has(m.team_a) && !busy.has(m.team_b));
-  const hidden = allChoices.length - choices.length;
-  if(!choices.length){ toast(allChoices.length ? 'Alle startklare kamper har et lag som er opptatt' : 'Ingen startklare kamper i køen', true); return; }
-  const { box, close } = sheet(`
-    <h2>Velg kamp til bane ${court}</h2>
-    <p class="lede">Bare kamper der begge lag er ledige vises.${hidden ? ` ${hidden} ${hidden === 1 ? 'kamp er' : 'kamper er'} skjult på grunn av banekonflikt.` : ''}</p>
-    <div class="list">${choices.map(m => `<button class="row-btn" data-pick="${m.id}">
-      <span class="tx"><b>${esc(tName(m.team_a) || '?')} – ${esc(tName(m.team_b) || '?')}</b><small>${esc(matchSection(m))}</small></span>
-      <span class="arw">${svg(ICON.chev,'width:15px;height:15px;stroke-width:2')}</span>
-    </button>`).join('')}</div>
-    <div style="margin-top:20px"><button class="btn ghost block" data-x="cancel">Avbryt</button></div>`);
-  box.querySelector('[data-x="cancel"]').onclick = close;
-  box.querySelectorAll('[data-pick]').forEach(btn => btn.onclick = async () => {
-    const ok = await rpc('kubb_select_court_match', { p_court:court, p_match:btn.dataset.pick }, 'Kampen er satt på banen');
-    if(ok) close();
-  });
-}
-
-function sheetManageReadyMatch(id){
-  const m = S.matches.find(match => match.id === id && match.status === 'ready');
-  if(!m) return;
-  const occupied = new Set(S.matches.filter(match => match.id !== id && ['ready','live','paused'].includes(match.status)).map(match => match.court));
-  const freeCourts = Array.from({length:S.t.num_courts}, (_, i) => i + 1).filter(court => court !== m.court && !occupied.has(court));
-  const { box, close } = sheet(`
-    <h2>Flytt eller endre kampen</h2>
-    <p class="lede">${esc(tName(m.team_a) || '?')} – ${esc(tName(m.team_b) || '?')} er kalt inn til bane ${m.court}, men kampen er ikke startet.</p>
-    ${freeCourts.map(court => `<button class="choice" data-court="${court}"><span class="k">${court}</span><span><b>Flytt til bane ${court}</b><small>Banen er ledig</small></span></button>`).join('')}
-    <button class="choice" data-x="replace"><span><b>Velg en annen kamp på bane ${m.court}</b><small>Denne kampen går automatisk tilbake i køen</small></span></button>
-    <button class="btn danger block" data-x="release">Legg kampen tilbake i køen</button>
-    <div style="margin-top:20px"><button class="btn ghost block" data-x="cancel">Avbryt</button></div>`);
-  box.querySelector('[data-x="cancel"]').onclick = close;
-  box.querySelector('[data-x="replace"]').onclick = () => { close(); sheetChooseCourt(m.court); };
-  box.querySelector('[data-x="release"]').onclick = async () => {
-    const ok = await rpc('kubb_admin_release_court_match', { p_match:id }, 'Kampen er tilbake i køen');
-    if(ok) close();
+  if(!choices.length){ toast('Ingen startklare kamper i køen', true); return; }
+  const state = match => {
+    const remaining = match.deferred_until ? Math.ceil((Date.parse(match.deferred_until) - svrNow()) / 60000) : 0;
+    if(remaining > 0) return { disabled:true, text:`Ti minutters pause · øverst i køen om ${remaining} min` };
+    if(busy.has(match.team_a) || busy.has(match.team_b)) return { disabled:true, text:'Et av lagene spiller eller er kalt inn på en annen bane' };
+    if(match.deferred_until) return { disabled:false, text:'Prioritert · tilbake øverst etter ti minutters pause' };
+    return { disabled:false, text:matchSection(match) };
   };
-  box.querySelectorAll('[data-court]').forEach(button => button.onclick = async () => {
-    const ok = await rpc('kubb_admin_move_court_match', { p_match:id, p_court:Number(button.dataset.court) }, `Kampen er flyttet til bane ${button.dataset.court}`);
+  const { box, close } = sheet(`
+    <h2>${replaceable ? 'Velg ny kamp' : 'Velg kamp'} til bane ${court}</h2>
+    <p class="lede">Kampene står i planlagt rekkefølge. En kamp som erstattes får ti minutters pause og kommer deretter øverst.</p>
+    <div class="list">${choices.map((m, index) => { const s = state(m); return `<button class="row-btn" data-pick="${m.id}" ${s.disabled ? 'disabled' : ''}>
+      <span class="ico num">${index + 1}</span><span class="tx"><b>${esc(tName(m.team_a) || '?')} – ${esc(tName(m.team_b) || '?')}</b><small>${esc(s.text)}</small></span>
+      <span class="arw">${svg(ICON.chev,'width:15px;height:15px;stroke-width:2')}</span>
+    </button>`; }).join('')}</div>
+    <div style="margin-top:20px"><button class="btn ghost block" data-x="cancel">Avbryt</button></div>`);
+  box.querySelector('[data-x="cancel"]').onclick = close;
+  box.querySelectorAll('[data-pick]:not(:disabled)').forEach(btn => btn.onclick = async () => {
+    const ok = await rpc('kubb_select_court_match', { p_court:court, p_match:btn.dataset.pick }, replaceable ? 'Kampen på banen er endret' : 'Kampen er satt på banen');
     if(ok) close();
   });
 }
