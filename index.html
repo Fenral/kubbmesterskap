@@ -1732,8 +1732,8 @@ function viewGroups(){
   const editable = second && canEditAdvancement();
   const groupLabel = stage === 'group' ? `Gruppe ${g}` : g;
   const tabLabel = key => {
-    const [tabStage, tabGroup] = key.split('|');
-    return tabStage === 'group' ? `Gruppe ${tabGroup}` : tabGroup;
+    const [, tabGroup] = key.split('|');
+    return `Gruppe ${tabGroup}`;
   };
   return `
     ${stageSwitch}

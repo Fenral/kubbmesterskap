@@ -97,7 +97,8 @@ const audit = [
 ];
 
 const browser = await chromium.launch({ headless:true, executablePath:chrome });
-const page = await browser.newPage({ viewport:{ width:390, height:844 } });
+const context = await browser.newContext({ viewport:{ width:390, height:844 }, serviceWorkers:'block' });
+const page = await context.newPage();
 const capture = async name => { if(captureDir) await page.screenshot({ path:join(captureDir, `${name}.png`), fullPage:true }); };
 const errors = [];
 let expiredFinishCalls = 0;
@@ -210,8 +211,8 @@ try {
   if (!await page.locator('.mode.stage-switch').count()) throw new Error('Gruppespill bruker ikke mockens tydelige valgmeny');
   await page.getByRole('button', { name:'Gruppespill 2', exact:true }).click();
   const secondGroups = await page.locator('.group-tabs button').allTextContents();
-  if (secondGroups.join(',') !== 'B1,B2,A1,A2') throw new Error(`Gruppespill 2 viser ikke alle fire puljene i avtalt rekkefølge: ${secondGroups.join(',')}`);
-  if (await page.locator('.group-tabs button[aria-current="page"]').textContent() !== 'A2') throw new Error('Eget lag sin pulje åpnes ikke automatisk i gruppespill 2');
+  if (secondGroups.join(',') !== 'Gruppe B1,Gruppe B2,Gruppe A1,Gruppe A2') throw new Error(`Gruppespill 2 viser ikke alle fire puljene med samme meny som gruppespill 1: ${secondGroups.join(',')}`);
+  if (await page.locator('.group-tabs button[aria-current="page"]').textContent() !== 'Gruppe A2') throw new Error('Eget lag sin pulje åpnes ikke automatisk i gruppespill 2');
   if (await page.locator('#group-title').textContent() !== 'A2') throw new Error('Gruppespill 2 bruker ikke samme gruppevisning som gruppespill 1');
   if (await page.locator('.group-board tbody tr').count() !== 4) throw new Error('Valgt pulje viser ikke alle fire plassene');
   if (await page.locator('.group-board').getByText('2. plass fra gruppe A · automatisk', { exact:true }).count() !== 1) throw new Error('Automatisk kildeplass vises ikke i tabellen');
