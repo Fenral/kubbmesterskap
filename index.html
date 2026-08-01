@@ -1184,12 +1184,22 @@ function showAssignmentPopup(m, a, b){
 function currentAdminAlerts(){
   if(!isAdmin()) return [];
   const alerts = [];
+  // En bane kan bli klar under trekningen. Ventetiden starter først når
+  // turneringen faktisk har begynt, ikke når kampoppsettet ble generert.
+  const firstMatchStartedAt = S.matches
+    .map(m => m.started_at ? Date.parse(m.started_at) : NaN)
+    .filter(Number.isFinite)
+    .reduce((first, startedAt) => Math.min(first, startedAt), Infinity);
   S.matches.filter(m => m.status === 'live' && left(m) <= 0).forEach(m => alerts.push({
     key:`over-${m.id}`, kind:'over', title:`Tiden er ute på bane ${m.court}`,
     body:`${tName(m.team_a) || '?'} mot ${tName(m.team_b) || '?'}`
   }));
-  S.matches.filter(m => m.status === 'ready' && m.ready_at && (svrNow() - Date.parse(m.ready_at)) >= 5 * 60000).forEach(m => {
-    const mins = Math.floor((svrNow() - Date.parse(m.ready_at)) / 60000);
+  S.matches.filter(m => {
+    if(m.status !== 'ready' || !m.ready_at || !Number.isFinite(firstMatchStartedAt)) return false;
+    return (svrNow() - Math.max(Date.parse(m.ready_at), firstMatchStartedAt)) >= 5 * 60000;
+  }).forEach(m => {
+    const waitStartedAt = Math.max(Date.parse(m.ready_at), firstMatchStartedAt);
+    const mins = Math.floor((svrNow() - waitStartedAt) / 60000);
     alerts.push({ key:`wait-${m.id}`, kind:'wait', title:`Bane ${m.court} har ventet i ${mins} min`, body:`${tName(m.team_a) || '?'} mot ${tName(m.team_b) || '?'}` });
   });
   const active = S.matches.filter(m => ['ready','live','paused'].includes(m.status));
