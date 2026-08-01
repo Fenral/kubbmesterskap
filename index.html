@@ -864,6 +864,10 @@ async function boot(){
   $('#auth').classList.add('hide');
   $('#app').classList.remove('hide');
   await pullAll();
+  if(S.teamId){
+    S.tab = 'groups';
+    selectTeamGroup();
+  } else S.tab = 'courts';
   buildNav(); paint(); listen();
   setInterval(beat, 250);
   setInterval(finishExpiredMatches, 10000);
@@ -1034,14 +1038,16 @@ function dismissKeyboard(){
   if(active && typeof active.blur === 'function') active.blur();
   setTimeout(() => $('#view')?.focus({ preventScroll:true }), 0);
 }
+function selectTeamGroup(){
+  if(!S.teamId) return;
+  S.groupView = null;
+  const hasSecondGroup = advancementRows().some(row => row.team_id === S.teamId);
+  S.groupStage = hasSecondGroup && ['group_review','final_groups','semifinal_review','knockout','finished'].includes(S.t.phase) ? 'final_groups' : 'group';
+}
 function go(tab){
   dismissKeyboard();
   if(S.tab === tab) { window.scrollTo({ top:0, behavior: reduced() ? 'auto' : 'smooth' }); return; }
-  if(tab === 'groups' && S.teamId){
-    S.groupView = null;
-    const hasSecondGroup = advancementRows().some(row => row.team_id === S.teamId);
-    S.groupStage = hasSecondGroup && ['group_review','final_groups','semifinal_review','knockout','finished'].includes(S.t.phase) ? 'final_groups' : 'group';
-  }
+  if(tab === 'groups') selectTeamGroup();
   S.tab = tab; buildNav(); paint(); window.scrollTo(0,0);
 }
 

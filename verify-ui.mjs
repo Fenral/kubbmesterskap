@@ -141,6 +141,10 @@ try {
   for (const digit of ['1','2','3','4']) await page.getByRole('button', { name:digit, exact:true }).click();
   await page.locator('#whoName').getByText('Kubbkongene · arrangør').waitFor({ timeout:5000 });
 
+  if (await page.locator('[data-tab="groups"]').getAttribute('aria-current') !== 'page') throw new Error('Lag lander ikke direkte på gruppespillet');
+  if (await page.locator('#group-title').textContent() !== 'Gruppe A') throw new Error('Lagets egen gruppe åpnes ikke automatisk');
+  await page.getByRole('button', { name:'Baner', exact:true }).click();
+
   const courtNumbers = await page.locator('.court-no').allTextContents();
   if (courtNumbers.join(',') !== '1,2,3,4,5') throw new Error(`Banerekkefølgen er feil: ${courtNumbers.join(',')}`);
   if (await page.locator('.court-next.assigned').count() !== 4) throw new Error('Neste kamp er ikke tydelig markert på alle aktive baner');
