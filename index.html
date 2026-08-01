@@ -1076,7 +1076,12 @@ function pushKey(value){
 }
 async function registerServiceWorker(){
   if(!('serviceWorker' in navigator)) return null;
-  try { return await navigator.serviceWorker.register('/sw.js'); } catch(_) { return null; }
+  try {
+    const registration = await navigator.serviceWorker.register('/sw.js', { updateViaCache:'none' });
+    await registration.update();
+    if(registration.waiting) registration.waiting.postMessage({ type:'SKIP_WAITING' });
+    return registration;
+  } catch(_) { return null; }
 }
 async function registerPushSubscription(create){
   if(!S.code || !('serviceWorker' in navigator) || !('PushManager' in window) || !('Notification' in window)) return false;
@@ -2354,6 +2359,11 @@ document.addEventListener('fullscreenchange', () => { if(!document.fullscreenEle
 keypad();
 $('#spectate').onclick = async () => { S.role = 'guest'; S.code = null; await boot(); };
 $('#installApp').onclick = installApp;
+navigator.serviceWorker?.addEventListener('controllerchange', () => {
+  if(sessionStorage.getItem('kubb.sw-reloaded')) return;
+  sessionStorage.setItem('kubb.sw-reloaded', '1');
+  window.location.reload();
+});
 registerServiceWorker();
 refreshInstallButton();
 document.addEventListener('keydown', e => {
