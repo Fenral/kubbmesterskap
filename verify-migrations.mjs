@@ -29,7 +29,8 @@ const migrations = [
   '20260801054611_keep_expired_matches_open.sql',
   '20260801070428_automatic_next_match_and_team_start.sql',
   '20260801072759_reset_results_keep_teams_and_groups.sql',
-  '20260801074439_auto_fill_all_free_courts.sql'
+  '20260801074439_auto_fill_all_free_courts.sql',
+  '20260801111000_fair_match_rotation.sql'
 ];
 
 const CODE = 'ENDRE_MEG';
@@ -95,7 +96,7 @@ try { await db.query('select public.kubb_admin_set_teams($1,$2::jsonb)', [CODE, 
 assert(!wrongCountWorked, 'team setup accepted fewer than 16 teams');
 await db.query('select public.kubb_admin_set_teams($1,$2::jsonb)', [CODE, JSON.stringify(teamList())]);
 let teamCode = await scalar("select code, team_id from public.kubb_codes where role = 'team' order by code limit 1");
-await db.query("select public.kubb_admin_settings($1,'Kilkast test',40,2,2)", [CODE]);
+await db.query("select public.kubb_admin_settings($1,'Kilkast test',40,5,2)", [CODE]);
 await db.query('select public.kubb_admin_generate_groups($1)', [CODE]);
 
 let groups = await db.query("select grp, count(*)::int n from public.kubb_teams where withdrawn_at is null group by grp order by grp");
@@ -110,7 +111,20 @@ const firstCourtFill = await scalar(`select
   count(*) filter (where status = 'ready' and stage = 'group')::int ready,
   count(distinct court) filter (where status = 'ready' and stage = 'group')::int courts
   from public.kubb_matches`);
-assert(firstCourtFill.ready === 2 && firstCourtFill.courts === 2, 'drawing groups did not automatically fill every free court');
+assert(firstCourtFill.ready === 5 && firstCourtFill.courts === 5, 'drawing groups did not automatically fill every free court');
+const openingRotation = await db.query(`
+  select id, grp, round, court, team_a, team_b
+    from public.kubb_matches
+   where status = 'ready' and stage = 'group'
+   order by court
+`);
+assert(openingRotation.rows.every(match => match.round === 1), 'the opening courts included a second-round match before every team had its first match');
+assert(new Set(openingRotation.rows.flatMap(match => [match.team_a, match.team_b])).size === 10, 'a team was called in twice before the opening rotation was complete');
+const openingCourtOne = openingRotation.rows.find(match => match.court === 1);
+await db.query('select public.kubb_start_match($1,$2)', [CODE, openingCourtOne.id]);
+await db.query("select public.kubb_finish_match($1,$2,'draw')", [CODE, openingCourtOne.id]);
+const fairReplacement = await scalar("select grp, round from public.kubb_matches where status = 'ready' and court = 1");
+assert(fairReplacement.grp === 'C' && fairReplacement.round === 1, 'the next free court did not prioritize teams that had not yet been called in');
 // Isolate the withdrawal test from the active queue; the assertion above covers
 // the automatic initial assignment itself.
 await db.query("update public.kubb_matches set status = 'queued', court = null, ready_at = null where status = 'ready'");

@@ -1394,16 +1394,29 @@ function courtState(c){
 }
 function rankedQueuedMatches(){
   const now = svrNow();
+  const phase = match => match.stage === 'group' ? 'group'
+    : ['a_group','b_group'].includes(match.stage) ? 'final_groups' : 'knockout';
   const priority = match => {
     if(!match.deferred_until) return [1, match.order_no || 0];
     const due = Date.parse(match.deferred_until);
     return due <= now ? [0, due] : [2, due];
   };
+  const rotation = match => {
+    if(phase(match) === 'knockout') return [0, 0, 0];
+    const committed = S.matches.filter(item =>
+      phase(item) === phase(match) && ['ready','live','paused','finished'].includes(item.status));
+    const games = teamId => committed.filter(item => item.team_a === teamId || item.team_b === teamId).length;
+    const a = games(match.team_a), b = games(match.team_b);
+    return [Math.max(a,b), Math.min(a,b), Number(match.round) || 0];
+  };
   return S.matches
     .filter(match => match.status === 'queued' && match.team_a && match.team_b)
     .sort((a,b) => {
       const pa = priority(a), pb = priority(b);
-      return pa[0] - pb[0] || pa[1] - pb[1] || (a.order_no || 0) - (b.order_no || 0);
+      const ra = rotation(a), rb = rotation(b);
+      return pa[0] - pb[0] || pa[1] - pb[1]
+        || ra[0] - rb[0] || ra[1] - rb[1] || ra[2] - rb[2]
+        || (a.order_no || 0) - (b.order_no || 0);
     });
 }
 function viewCourts(){
@@ -2188,7 +2201,7 @@ function sheetChooseCourt(court){
   };
   const { box, close } = sheet(`
     <h2>${replaceable ? 'Velg ny kamp' : 'Velg kamp'} til bane ${court}</h2>
-    <p class="lede">Kampene står i planlagt rekkefølge. En kamp som erstattes får ti minutters pause og kommer deretter øverst.</p>
+    <p class="lede">Lagene som har spilt minst prioriteres. En erstattet kamp får ti minutters pause og kommer deretter øverst.</p>
     <div class="list">${choices.map((m, index) => { const s = state(m); return `<button class="row-btn" data-pick="${m.id}" ${s.disabled ? 'disabled' : ''}>
       <span class="ico num">${index + 1}</span><span class="tx"><b>${esc(tName(m.team_a) || '?')} – ${esc(tName(m.team_b) || '?')}</b><small>${esc(s.text)}</small></span>
       <span class="arw">${svg(ICON.chev,'width:15px;height:15px;stroke-width:2')}</span>
