@@ -4,20 +4,20 @@ Turneringsverktøy for kubb. Én HTML-fil som kjører hele arrangementet: 16 lag
 
 ## Turneringsflyt
 
-1. Arrangøren legger inn nøyaktig 16 lag. De to første lagene får arrangørtilgang med sin vanlige lagkode, og kan trekke fire tilfeldige puljer med fire lag, se og dele alle lagkoder, samt rette resultater før neste turneringstrinn låses. Trekket tidsstemples og kan ikke kjøres på nytt uten full nullstilling. Seier gir 3 poeng, uavgjort 1 poeng og tap 0 poeng.
+1. Ett av arrangørlagene legger inn nøyaktig 16 lag. De to første lagene får arrangørtilgang med sin vanlige lagkode, og kan trekke fire tilfeldige puljer med fire lag, se og dele alle lagkoder, samt rette resultater før neste turneringstrinn låses. Trekket tidsstemples og kan ikke kjøres på nytt uten full nullstilling. Seier gir 3 poeng, uavgjort 1 poeng og tap 0 poeng.
 2. De to beste fra hver første pulje går til A1 eller A2. De to nederste går til B1 eller B2. Det blir fire nye puljer med fire lag og seks kamper i hver.
 3. Rangeringen er poeng, deretter innbyrdes poeng. Er lagene fortsatt helt like ved kvalifiseringsstreken, gjennomføres straffekast og arrangøren registrerer rekkefølgen. Etter andre gruppespill går de to beste fra hver pulje direkte til semifinaler i A eller B. Begge spor har finale og bronsefinale. En knockoutkamp kan aldri registreres uavgjort og avgjøres med straffekast ved behov.
-4. Banekartet viser live-kamper, neste valgte kamp og nedtelling på fem baner i fast rekkefølge. Når 40 minutter går ut, blir en gruppespillkamp automatisk uavgjort. Arrangøren velger alltid neste kamp manuelt, kan flytte en ikke startet kamp, legge den tilbake i køen og gi en pågående kamp fem minutter ekstra. Berørte lag får popup, vedvarende banemelding og valgfrie nettleservarsler.
-5. Er et lag ikke klart, kan arrangøren legge kampen tilbake i køen og velge en annen. Arrangøren kan også stryke et lag; da fjernes alle lagets spilte og kommende kamper, tabellene beregnes på nytt og laget kan ikke lenger logge inn.
+4. Baneoversikten viser live-kamper, ny kamp og nedtelling på fem baner i fast rekkefølge. Når et resultat lagres, velger systemet straks den høyest prioriterte spillbare kampen i køen og annonserer den på samme bane. Begge lagene i kampen kan starte den felles klokken; arrangørlagene har samme knapp som reserve. Når tiden går ut, fortsetter kampen å være åpen til et arrangørlag registrerer seier eller uavgjort. Berørte lag får popup, vedvarende banemelding og valgfrie nettleservarsler.
+5. Er et lag ikke klart, kan arrangørlaget velge en annen kamp. Kampen som erstattes får ti minutters pause og kommer deretter øverst i køen. Arrangørlaget kan også stryke et lag; da fjernes alle lagets spilte og kommende kamper, tabellene beregnes på nytt og laget kan ikke lenger logge inn.
 6. Arrangøren avslutter turneringen eksplisitt etter finaler og bronsefinaler. Resultatene låses og hele turneringen får status `finished`. En komplett turnering består av 56 kamper: 24 + 24 i gruppespillene og 8 i knockout.
 
-Appen er laget for å brukes på mobil ute på banen. Arrangøren styrer alt fra ett ark, lagene logger inn med sin egen kode og ser bare det de trenger, og en storskjermvisning kan kastes opp på en projektor.
+Appen er laget for å brukes på mobil ute på banen. Arrangørlagene styrer turneringen fra ett kontrollark, lagene logger inn med sin egen kode og ser sin gruppe først, og en ren oversiktsvisning kan vises på en større skjerm.
 
 ![Kampoversikt](docs/screenshots/03-kamper.png)
 
 ## Slik henger det sammen
 
-Hele frontend-en ligger i `index.html` — ingen byggesteg, ingen npm-avhengigheter i produksjon, ingen rammeverk. Filen lastes opp til Supabase Storage, og en Edge Function (`supabase/functions/kubb`) serverer den med riktig `content-type` og et 60-sekunders cache-lag.
+Hele frontend-en ligger i `index.html` — ingen byggesteg, ingen npm-avhengigheter i produksjon og ingen rammeverk. Vercel serverer de statiske filene på `kubbmesterskap.vercel.app`, mens Supabase lagrer turneringen og sender sanntidsoppdateringer. Edge-funksjonen `kubb-push-expiry` sender tidsvarsler til installerte mobilapper også når skjermen er låst.
 
 All logikk som betyr noe ligger i Postgres som `SECURITY DEFINER`-funksjoner. Klienten kan lese kamper, lag og turneringsoppsett gjennom RLS, men kan ikke skrive noe direkte — hver eneste endring går gjennom en funksjon som først sjekker koden din. Tabellen med koder (`kubb_codes`) har RLS uten policies, så den er utilgjengelig for alle andre enn de funksjonene.
 
@@ -27,9 +27,9 @@ Oppdateringer kommer via Supabase Realtime på `kubb_matches`, `kubb_teams` og `
 
 ## Roller
 
-**Arrangør** logger inn med arrangørkoden og får et eget kontrollark. Herfra settes oppsettet før start, trekningen gjennomføres, enkeltkoder fornyes, lagstatus og ventetid følges, kamper flyttes/startes/pauses og faseovergangene godkjennes. Ved retting av et knockoutresultat vises alle senere kamper som påvirkes, og disse kan nullstilles kontrollert før resultatet endres.
+**Arrangørlag** er de to første lagene i laglisten. De logger inn med sin vanlige lagkode og får kontrollarket i tillegg til sin egen lagvisning. Herfra settes oppsettet før start, trekningen gjennomføres, enkeltkoder fornyes, lagstatus og ventetid følges, resultater registreres og faseovergangene godkjennes. Ved retting av et knockoutresultat vises alle senere kamper som påvirkes, og disse kan nullstilles kontrollert før resultatet endres.
 
-**Lag** logger inn med sin firesifrede kode og ser sine egne kamper, hvilken bane de skal på, nedtellingen og tabellen. Vanlige lagkoder har bare lesetilgang og varsler.
+**Lag** logger inn med sin firesifrede kode og går direkte til sin egen gruppe. De ser egne kamper, hvilken bane de skal på, nedtellingen og tabellen. Når deres kamp er annonsert på en bane, kan begge lag starte klokken. Øvrig kampstyring og resultatregistrering krever arrangørlag.
 
 **Storskjerm** krever ingen innlogging og viser løpende kamper med nedtelling.
 
@@ -45,7 +45,7 @@ Oppdateringer kommer via Supabase Realtime på `kubb_matches`, `kubb_teams` og `
 | `kubb_tiebreaks` | Straffekastrekkefølge for lag som fortsatt er helt like |
 | `kubb_login_attempts` | Rate limiting på innlogging |
 
-Funksjonene deler seg i to: `kubb_login` / `kubb_role` / `kubb_now` er åpne for leseflyten, mens all kampstyring og alle `kubb_admin_*`-funksjoner krever en kode med arrangørrolle.
+Funksjonene deler seg i to: `kubb_login` / `kubb_role` / `kubb_now` er åpne for leseflyten, `kubb_start_match` godtar ett av lagene i den aktuelle kampen eller et arrangørlag, og øvrig kampstyring samt alle `kubb_admin_*`-funksjoner krever arrangørrolle. `kubb_assign_next_court_match` velger neste kamp i køen automatisk etter lagret resultat, men starter aldri klokken. `kubb_admin_reset_results` rydder en testturnering tilbake til første gruppespill uten å endre lag, puljer, lagkoder eller arrangørroller.
 
 `kubb_admin_phase_action` styrer de eksplisitte faseovergangene. Først etter arrangørens godkjenning oppretter `kubb_create_final_groups` A- og B-gruppene, og senere seedes semifinalene. Når en utslagskamp avsluttes flytter `kubb_propagate` vinneren videre av seg selv.
 
@@ -64,11 +64,11 @@ Migrasjonene ligger i `supabase/migrations/` og kjøres i rekkefølge.
 select public.kubb_admin_set_admin_code('<gjeldende kode>', '<ny kode>');
 ```
 
-Deretter legger du appen ut:
+Deretter kobler du mappen til Vercel. Et push til `main` publiserer de statiske filene automatisk. Edge-funksjonen for tidsvarsler legges ut separat:
 
 ```bash
-supabase functions deploy kubb --no-verify-jwt
-# last opp index.html til Storage-bucketen «kubb» som public
+supabase functions deploy kubb-push-expiry --no-verify-jwt
+vercel --prod
 ```
 
 `index.html` peker på Supabase-URL og anon-nøkkel øverst i filen. Bytt disse til ditt eget prosjekt. Anon-nøkkelen er ment å ligge i klienten — det er RLS og funksjonene som holder på sikkerheten, ikke nøkkelen.

@@ -381,8 +381,9 @@ tr.stand-click:hover td,tr.stand-click:focus-visible td{background:var(--surface
 .group-board tr.leading td:nth-child(2){font-weight:650}
 .group-board tr.pending td{color:var(--ink-3)}
 .group-board tr.pending td:nth-child(2){font-weight:540}
-.group-team-cell{display:flex;align-items:center;justify-content:space-between;gap:8px;min-width:150px}
-.group-team-cell>span{min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.group-team-cell{display:flex;align-items:center;justify-content:space-between;gap:6px;min-width:142px}
+.group-team-main{display:grid;gap:2px;min-width:0}
+.group-team-name{min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .group-source{display:block;margin-top:2px;color:var(--ink-3);font-size:10.5px;font-weight:480;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .stand-edit{flex:0 0 auto;padding:5px 7px;border:1px solid var(--line-2);border-radius:7px;background:var(--surface);font-size:10.5px;font-weight:620;box-shadow:var(--shadow-1)}
 .group-matches{margin-top:var(--s7)}
@@ -631,6 +632,87 @@ body.tv .track{height:3px}
 @media(max-width:760px){body.tv .courts{grid-template-columns:1fr 1fr}}
 @media(orientation:portrait){body.tv .courts{grid-template-columns:1fr 1fr}}
 
+/* ---------------- presis polish ---------------- */
+.who{min-height:44px}
+.seg button,.group-tabs button{min-height:44px}
+.stand-edit{width:46px;min-width:46px;min-height:44px;padding:0 5px}
+.btn.sm{min-height:44px}
+
+.court-tools{display:flex;align-items:center;gap:6px;overflow-x:auto;margin:0 0 var(--s4);padding-bottom:2px;scrollbar-width:none}
+.court-tools::-webkit-scrollbar{display:none}
+.court-tools .btn{flex:0 0 auto}
+.court-priority{display:flex;align-items:center;gap:12px;margin-bottom:var(--s4);padding:14px;border-radius:var(--r2);background:var(--ink);color:var(--on-ink);box-shadow:var(--shadow-2)}
+.court-priority[data-tone="ready"]{background:var(--go);color:#062718}
+.court-priority .priority-copy{flex:1;min-width:0}
+.court-priority .priority-kicker{display:block;margin-bottom:2px;font-size:11px;font-weight:720;letter-spacing:.065em;text-transform:uppercase;opacity:.7}
+.court-priority b{display:block;font-size:16px;font-weight:680;letter-spacing:-.018em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.court-priority small{display:block;margin-top:2px;font-size:12.5px;opacity:.76;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.court-priority .btn{flex:0 0 auto;min-height:44px;border-color:color-mix(in oklch,currentColor 28%,transparent);background:color-mix(in oklch,var(--on-ink) 12%,transparent);color:inherit;box-shadow:none}
+
+.compact-courts{display:grid;grid-template-columns:1fr;gap:8px}
+.compact-courts .court[data-state="free"]{display:flex;align-items:center;min-height:70px;padding:11px 12px}
+.compact-courts .court[data-state="free"] .court-top{flex:1;padding:0;border:0;background:transparent}
+.compact-courts .court[data-state="free"] .court-top .cap{font-size:15px;font-weight:630;color:var(--ink)}
+.compact-courts .court[data-state="free"] .free{padding:0 10px;color:var(--ink-3);font-size:13px}
+.compact-courts .court[data-state="free"] .court-actions{padding:0}
+.compact-courts .court[data-state="free"] .court-actions .btn{min-width:92px}
+.compact-courts .court-body{min-height:76px}
+.compact-courts .court-actions{padding-top:10px}
+
+.turn-call>span:nth-child(2){flex:1;min-width:0}
+.turn-call .btn{flex:0 0 auto;min-height:44px;padding:0 13px;border-color:color-mix(in oklch,currentColor 30%,transparent);background:color-mix(in oklch,var(--on-ink) 12%,transparent);color:inherit;box-shadow:none}
+
+.notify-prompt{display:flex;align-items:center;gap:12px;margin:0 0 var(--s4);padding:12px 13px;border:1px solid var(--line);border-radius:var(--r2);background:var(--surface);box-shadow:var(--shadow-1)}
+.notify-prompt>span{flex:1;min-width:0}.notify-prompt b{display:block;font-size:13.5px}.notify-prompt small{display:block;margin-top:1px;font-size:12px;color:var(--ink-3)}
+.notify-prompt .btn{flex:0 0 auto}
+
+.group-board tr.qualifies td{background:var(--go-w)}
+.group-board tr.qualifies td:first-child{color:var(--go);font-weight:720}
+.advance-tag{display:inline-flex;width:max-content;padding:1px 5px;border-radius:5px;background:var(--go);color:#fff;font-size:9px;font-weight:720;letter-spacing:.025em;text-transform:uppercase}
+.group-matches .mrow.settled{padding-top:8px;padding-bottom:8px;border-color:transparent}
+.group-matches .mrow.settled .side b{font-size:13.5px}
+.group-matches .mrow.settled .meta{display:none}
+
+.knockout-flow{display:grid;gap:0;padding:4px 0 var(--s4)}
+.knockout-stage>h3{margin:0 0 9px;font-size:11px;font-weight:720;letter-spacing:.065em;text-transform:uppercase;color:var(--ink-3)}
+.knockout-stage .ties{display:grid;gap:10px}
+.knockout-stage .tie{min-height:76px;padding:12px 13px}
+.knockout-connector{position:relative;width:2px;height:30px;margin:0 auto;background:var(--line-2)}
+.knockout-connector::after{content:"";position:absolute;left:50%;bottom:-1px;width:8px;height:8px;border-right:2px solid var(--line-2);border-bottom:2px solid var(--line-2);transform:translateX(-50%) rotate(45deg)}
+.knockout-medals{display:grid;grid-template-columns:1fr;gap:12px}
+.knockout-medals .knockout-stage:first-child .tie{border-color:var(--ink);box-shadow:var(--shadow-2)}
+@media(min-width:480px){.knockout-medals{grid-template-columns:1fr 1fr}}
+
+.result-context{margin:10px 0 var(--s4);padding:14px;border-radius:var(--r2);background:var(--ink);color:var(--on-ink)}
+.result-context small{display:block;margin-bottom:7px;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;opacity:.64}
+.result-context b{display:block;font-size:17px;line-height:1.35;letter-spacing:-.018em}
+.choice.result-choice{min-height:62px;margin-bottom:9px}
+.choice.result-choice[aria-pressed="true"]{border-color:var(--ink);box-shadow:0 0 0 2px var(--ink)}
+.choice.result-choice[aria-pressed="true"] .k{background:var(--ink);color:var(--on-ink)}
+.result-save{margin-top:16px}
+
+.admin-tools{display:grid;gap:0;overflow:hidden;border:1px solid var(--line);border-radius:var(--r2);background:var(--surface);box-shadow:var(--shadow-1)}
+.admin-tools .row-btn{border:0;border-bottom:1px solid var(--line);border-radius:0;box-shadow:none}
+.admin-tools .row-btn:last-child{border-bottom:0}
+.admin-activity{margin-top:var(--s5);border:1px solid var(--line);border-radius:var(--r2);background:var(--surface);overflow:hidden}
+.admin-activity summary{display:flex;align-items:center;justify-content:space-between;min-height:48px;padding:0 var(--s4);cursor:pointer;font-size:13.5px;font-weight:630;list-style:none}
+.admin-activity summary::-webkit-details-marker{display:none}
+.admin-activity summary::after{content:"+";font-size:19px;font-weight:400;color:var(--ink-3)}
+.admin-activity[open] summary::after{content:"−"}
+.admin-activity .activity{border:0;border-top:1px solid var(--line);border-radius:0;box-shadow:none}
+.stats b{font-family:var(--sans);font-variant-numeric:tabular-nums;font-feature-settings:"tnum" 1;letter-spacing:-.025em}
+
+@media(max-width:420px){
+  main{padding-left:12px;padding-right:12px}
+  .head{padding-left:12px;padding-right:12px}
+  .head h1{font-size:15px}
+  .who{max-width:62%;padding:6px 10px}
+  .who span:last-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .court-priority{align-items:flex-start;flex-wrap:wrap}
+  .court-priority .btn{width:100%}
+  .stats>div{padding:12px 5px}.stats b{font-size:19px}.stats small{font-size:10.5px}
+}
+
 /* ---------------- redusert bevegelse ---------------- */
 @media (prefers-reduced-motion: reduce){
   *,*::before,*::after{
@@ -650,7 +732,7 @@ body.tv .track{height:3px}
     <svg viewBox="0 0 32 32"><rect x="6" y="5" width="6" height="22" rx="1.6" fill="#fff"/><rect x="17" y="12" width="6" height="15" rx="1.6" fill="#58c48a"/></svg>
   </div>
   <h1 id="authTitle">Kilkast</h1>
-  <p class="lede">Fire siffer fra arrangøren</p>
+  <p class="lede">Fire siffer fra arrangørlaget</p>
   <div class="dots" id="dots" role="status" aria-live="polite" aria-label="Kode"></div>
   <div class="pad-grid" id="keypad"></div>
   <p class="msg" id="authMsg" role="alert"></p>
@@ -753,6 +835,10 @@ const S = {
 };
 const isAdmin = () => S.role === 'admin';
 const canAct  = () => S.role === 'admin' || S.role === 'team';
+const canStartMatch = id => {
+  const match = S.matches.find(item => item.id === id);
+  return !!match && (isAdmin() || (!!S.teamId && (match.team_a === S.teamId || match.team_b === S.teamId)));
+};
 const team    = id => S.teams.find(t => t.id === id);
 const tName   = id => (team(id) || {}).name || null;
 const svrNow  = () => Date.now() + S.offset;
@@ -834,7 +920,7 @@ async function submitPin(){
     pin = ''; pinLock = false; paintDots(true); return;
   }
   if(!data || !data.ok){
-    $('#authMsg').textContent = 'Ukjent kode. Sjekk med arrangøren.';
+    $('#authMsg').textContent = 'Ukjent kode. Sjekk med arrangørlaget.';
     buzz([30,50,30]); pin = ''; pinLock = false; paintDots(true); return;
   }
   S.code = pin; S.role = data.role; S.teamId = data.team_id; S.teamName = data.team_name;
@@ -1016,12 +1102,12 @@ function showAssignmentPopup(m, a, b){
   const n = el('aside', 'assignment-pop');
   n.setAttribute('role', 'alert');
   n.innerHTML = `<b>Dere skal til bane ${m.court} nå</b><small>${esc(a)} mot ${esc(b)}</small>
-    <div class="cluster"><button class="btn" data-see>Se banen</button><button class="btn" data-close>Lukk</button></div>`;
+    <div class="cluster"><button class="btn" data-start>Start kampen</button><button class="btn" data-see>Se banen</button></div>`;
+  n.querySelector('[data-start]').onclick = () => { n.remove(); go('courts'); setTimeout(() => countdown(m.id), 80); };
   n.querySelector('[data-see]').onclick = () => {
     n.remove(); go('courts');
     setTimeout(() => document.getElementById('c-' + m.id)?.scrollIntoView({ behavior:reduced() ? 'auto' : 'smooth', block:'center' }), 50);
   };
-  n.querySelector('[data-close]').onclick = () => n.remove();
   $('#layers').appendChild(n);
   setTimeout(() => n.remove(), 9000);
 }
@@ -1052,16 +1138,24 @@ function notifyAdminAlerts(){
     sendNotification(a.title, a.body);
   });
 }
-function adminAlertPanel(){
+function adminAlertPanel(skipPriority = false){
   const alerts = currentAdminAlerts();
+  if(skipPriority){
+    const firstExpired = alerts.findIndex(alert => alert.kind === 'over' && alert.key.startsWith('over-'));
+    if(firstExpired >= 0) alerts.splice(firstExpired, 1);
+  }
   if(!alerts.length || S.tv) return '';
-  return `<aside class="admin-alerts" aria-label="Varsler til arrangør">${alerts.map(a => `<div class="admin-alert" data-kind="${a.kind}"><i class="mark-alert"></i><span><b>${esc(a.title)}</b><small>${esc(a.body)}</small></span></div>`).join('')}</aside>`;
+  return `<aside class="admin-alerts" aria-label="Varsler til arrangørlag">${alerts.map(a => `<div class="admin-alert" data-kind="${a.kind}"><i class="mark-alert"></i><span><b>${esc(a.title)}</b><small>${esc(a.body)}</small></span></div>`).join('')}</aside>`;
 }
 function notificationButton(){
   if(S.tv || S.role === 'guest') return '';
   const enabled = notificationsEnabled();
   const background = enabled && store.get('kubb.push') === 'on';
   return `<button class="btn ${enabled ? 'quiet' : 'ghost'} sm" data-do="notify">${background ? 'Varsler også med låst skjerm' : enabled ? 'Varsler er på' : 'Slå på varsler'}</button>`;
+}
+function groupNotificationPrompt(){
+  if(!S.teamId || notificationsEnabled() || S.tv) return '';
+  return `<aside class="notify-prompt"><span><b>Få beskjed når banen er klar</b><small>Varslet følger laget ditt, også med låst skjerm når appen er installert.</small></span><button class="btn quiet sm" data-do="notify">Slå på</button></aside>`;
 }
 
 // Denne ligger øverst i appen helt til laget er ferdig på banen. Den virker
@@ -1076,6 +1170,7 @@ function teamTurnNotice(){
   return `<aside class="turn-call" data-state="${state}" role="status" aria-live="assertive">
     <span class="turn-mark">${m.status === 'ready' ? 'Nå' : 'Bane ' + m.court}</span>
     <span><b>${esc(title)}</b><small>${esc(S.teamName)}${rival ? ` mot ${esc(rival)}` : ''}</small></span>
+    ${m.status === 'ready' && canStartMatch(m.id) ? `<button class="btn" data-do="start" data-id="${m.id}">Start</button>` : ''}
   </aside>`;
 }
 function finishedNotice(){
@@ -1151,7 +1246,7 @@ function paint(){
   document.title = (S.t.name || 'Kilkast');
   const who = $('#who');
   who.dataset.role = S.role;
-  $('#whoName').textContent = S.role === 'admin' ? (S.teamName ? `${S.teamName} · arrangør` : 'Arrangør') : S.role === 'team' ? (S.teamName || 'Lag') : 'Tilskuer';
+  $('#whoName').textContent = S.role === 'admin' ? (S.teamName ? `${S.teamName} · arrangørlag` : 'Arrangørlag') : S.role === 'team' ? (S.teamName || 'Lag') : 'Tilskuer';
   who.setAttribute('aria-label', S.role === 'guest' ? 'Logg inn med kode' : 'Logg ut');
   who.onclick = () => S.role === 'guest' ? location.reload() : askSignOut();
 
@@ -1170,7 +1265,7 @@ function wire(){
   $('#view').querySelectorAll('[data-do]').forEach(n => n.onclick = () => {
     const a = n.dataset.do, id = n.dataset.id;
     ({
-      start:   () => isAdmin() && countdown(id),
+      start:   () => canStartMatch(id) && countdown(id),
       pause:   () => isAdmin() && rpc('kubb_pause_match',  { p_match:id }),
       resume:  () => isAdmin() && rpc('kubb_resume_match', { p_match:id }),
       extra:   () => isAdmin() && rpc('kubb_admin_add_match_time', { p_match:id, p_minutes:5 }, 'Fem minutter er lagt til'),
@@ -1232,19 +1327,19 @@ function viewCourts(){
   const n = S.t.num_courts || 6;
   if(!S.matches.length){
     return blank('Ingen kamper ennå',
-      isAdmin() ? 'Legg inn lagene og trekk gruppene. Deretter velger arrangøren kamp for hver bane.'
-                : 'Arrangøren har ikke satt opp kampene ennå. Siden oppdaterer seg av seg selv.',
+      isAdmin() ? 'Legg inn lagene og trekk gruppene. Deretter velger arrangørlaget den første kampen på hver bane.'
+                : 'Arrangørlaget har ikke satt opp kampene ennå. Siden oppdaterer seg av seg selv.',
       isAdmin() ? `<button class="btn primary" data-do="teams">Legg inn lag</button>` : '');
   }
-  let h = adminAlertPanel();
-  h += S.tv ? '' : notificationButton() + wakeLockButton() + `<button class="btn quiet sm" data-do="tv" aria-pressed="false">Kun oversikt</button>`;
+  let h = adminAlertPanel(true);
+  h += S.tv ? '' : courtPriorityAction() + `<div class="court-tools">${notificationButton()}${wakeLockButton()}<button class="btn quiet sm" data-do="tv" aria-pressed="false">Kun oversikt</button></div>`;
   if(S.tv){
     const cols = n <= 2 ? n : n <= 4 ? 2 : n <= 9 ? 3 : n <= 16 ? 4 : 5;
     document.body.style.setProperty('--tvcols', cols);
   }
   const order = [];
   for(let c = 1; c <= n; c++) order.push(c);
-  h += `<div class="courts">`;
+  h += `<div class="courts${S.tv ? '' : ' compact-courts'}">`;
   order.forEach(c => { const state = courtState(c); h += courtCard(c, state.current, state.next); });
   h += `</div>`;
 
@@ -1256,12 +1351,28 @@ function viewCourts(){
   return h;
 }
 
+function courtPriorityAction(){
+  if(S.tv) return '';
+  const expired = isAdmin() ? S.matches
+    .filter(match => match.status === 'live' && match.court && left(match) <= 0)
+    .sort((a,b) => a.court - b.court)[0] : null;
+  if(expired){
+    return `<aside class="court-priority" data-tone="over"><span class="priority-copy"><span class="priority-kicker">Neste handling</span><b>Registrer resultat på bane ${expired.court}</b><small>${esc(tName(expired.team_a) || '?')} mot ${esc(tName(expired.team_b) || '?')}</small></span><button class="btn" data-do="finish" data-id="${expired.id}">Registrer</button></aside>`;
+  }
+  const ready = S.matches
+    .filter(match => match.status === 'ready' && match.court && canStartMatch(match.id) &&
+      (!S.teamId || (match.team_a !== S.teamId && match.team_b !== S.teamId)))
+    .sort((a,b) => a.court - b.court)[0];
+  if(!ready) return '';
+  return `<aside class="court-priority" data-tone="ready"><span class="priority-copy"><span class="priority-kicker">Ny kamp på bane ${ready.court}</span><b>${esc(tName(ready.team_a) || '?')} mot ${esc(tName(ready.team_b) || '?')}</b><small>Et av lagene starter den felles klokken</small></span><button class="btn" data-do="start" data-id="${ready.id}">Start kampen</button></aside>`;
+}
+
 function courtCard(c, m, next){
   if(S.tv) return overviewCourtCard(c, m);
   if(!m){
     return `<article class="court" data-state="free">
       <div class="court-top"><span class="court-no">${c}</span><span class="cap">Bane ${c}</span></div>
-      <div class="free">${isAdmin() ? 'Velg en kamp til banen' : 'Arrangøren velger neste kamp'}</div>
+      <div class="free">Ledig</div>
       ${isAdmin() ? `<div class="court-actions"><button class="btn primary" data-do="choose" data-court="${c}">Velg kamp</button></div>` : ''}
     </article>`;
   }
@@ -1273,18 +1384,18 @@ function courtCard(c, m, next){
   S.seenOnCourt[c] = m.id;
 
   let actions = '';
-  if(!S.tv && isAdmin()){
-    if(m.status === 'ready')
+  if(!S.tv){
+    if(m.status === 'ready' && canStartMatch(m.id))
       actions = `<button class="btn primary" data-do="start" data-id="${m.id}">${svg(ICON.play,'width:15px;height:15px;fill:currentColor;stroke:none')}Start kampen</button>` +
-        `<button class="btn quiet" data-do="manageReady" data-id="${m.id}" data-court="${c}">Endre kamp</button>`;
+        (isAdmin() ? `<button class="btn quiet" data-do="manageReady" data-id="${m.id}" data-court="${c}">Endre kamp</button>` : '');
     else if(m.status === 'live')
-      actions = `<button class="btn quiet" data-do="pause" data-id="${m.id}">Pause</button>
+      actions = isAdmin() ? `<button class="btn quiet" data-do="pause" data-id="${m.id}">Pause</button>
                  <button class="btn quiet" data-do="extra" data-id="${m.id}">+5 min</button>
-                 <button class="btn primary" data-do="finish" data-id="${m.id}">Avslutt</button>`;
-    else
-      actions = `<button class="btn quiet" data-do="resume" data-id="${m.id}">Fortsett</button>
+                 <button class="btn primary" data-do="finish" data-id="${m.id}">Avslutt</button>` : '';
+    else if(m.status === 'paused')
+      actions = isAdmin() ? `<button class="btn quiet" data-do="resume" data-id="${m.id}">Fortsett</button>
                  <button class="btn quiet" data-do="extra" data-id="${m.id}">+5 min</button>
-                 <button class="btn primary" data-do="finish" data-id="${m.id}">Avslutt</button>`;
+                 <button class="btn primary" data-do="finish" data-id="${m.id}">Avslutt</button>` : '';
   }
   return `<article class="court${fresh && !S.tv ? ' enter' : ''}" id="c-${m.id}" data-state="${running ? 'live' : 'ready'}" data-tone="idle">
     <div class="court-top">
@@ -1306,7 +1417,7 @@ function courtCard(c, m, next){
     </div>
     <div class="track"><i data-track="${m.id}"></i></div>
     ${running ? courtNextStrip(c, next) : ''}
-    ${!isAdmin() && m.status === 'ready' ? '<div class="court-next">Arrangøren starter kampen når lagene er klare.</div>' : ''}
+    ${!actions && m.status === 'ready' ? '<div class="court-next">Et av lagene i kampen starter klokken.</div>' : ''}
     ${actions ? `<div class="court-actions">${actions}</div>` : ''}
   </article>`;
 }
@@ -1445,7 +1556,7 @@ function matchRow(m){
 }
 
 function viewMatches(){
-  if(!S.matches.length) return blank('Ingen kamper ennå', 'Kampene dukker opp her så snart arrangøren har satt opp gruppespillet.');
+  if(!S.matches.length) return blank('Ingen kamper ennå', 'Kampene dukker opp her så snart arrangørlaget har satt opp gruppespillet.');
   const opts = [['all','Alle'], ['mine','Mine'], ['open','Igjen'], ['done','Spilt']];
   let rows = S.matches.slice();
   if(S.filter === 'mine') rows = rows.filter(m => m.team_a === S.teamId || m.team_b === S.teamId);
@@ -1544,6 +1655,7 @@ function viewGroups(){
   };
   return `
     ${stageSwitch}
+    ${groupNotificationPrompt()}
     <div class="group-tabs" role="navigation" aria-label="Velg gruppe">
       ${groups.map(key => `<button type="button" data-do="group" data-id="${esc(key)}"${key === selected ? ' aria-current="page"' : ''}>${esc(tabLabel(key))}</button>`).join('')}
     </div>
@@ -1555,8 +1667,8 @@ function viewGroups(){
       <div class="group-board"><div class="tw"><table>
         <caption>Stillingen i ${esc(groupLabel)}</caption>
         <thead><tr><th>#</th><th>Lag</th><th>K</th><th>S</th><th>U</th><th>T</th><th>P</th></tr></thead>
-        <tbody>${rows.map(r => `<tr class="${!r.pending && r.pos <= 2 ? 'leading' : ''} ${r.pending ? 'pending' : ''} ${r.team_id === S.teamId ? 'self' : ''}">
-          <td>${r.pos}</td><td><div class="group-team-cell"><span>${esc(r.name)}${r.shootout_rank ? ` <small title="Plassering etter straffekast">SK${r.shootout_rank}</small>` : ''}</span>${editable && r.destination_slot ? `<button type="button" class="stand-edit" data-do="advance" data-id="${g}|${r.destination_slot}" aria-label="Endre plass ${r.destination_slot} i ${g}">Endre</button>` : ''}</div>${r.source_meta ? `<small class="group-source">${esc(r.source_meta)}</small>` : ''}</td><td>${r.played}</td><td>${r.wins}</td><td>${r.draws}</td><td>${r.losses}</td><td>${r.points}</td>
+        <tbody>${rows.map(r => `<tr class="${!r.pending && r.pos <= 2 ? (second ? 'qualifies' : 'leading') : ''} ${r.pending ? 'pending' : ''} ${r.team_id === S.teamId ? 'self' : ''}">
+          <td>${r.pos}</td><td><div class="group-team-cell"><span class="group-team-main"><span class="group-team-name">${esc(r.name)}${r.shootout_rank ? ` <small title="Plassering etter straffekast">SK${r.shootout_rank}</small>` : ''}</span>${second && !r.pending && r.pos <= 2 ? '<span class="advance-tag">Semifinale</span>' : ''}</span>${editable && r.destination_slot ? `<button type="button" class="stand-edit" data-do="advance" data-id="${g}|${r.destination_slot}" aria-label="Endre plass ${r.destination_slot} i ${g}">Endre</button>` : ''}</div>${r.source_meta ? `<small class="group-source">${esc(r.source_meta)}</small>` : ''}</td><td>${r.played}</td><td>${r.wins}</td><td>${r.draws}</td><td>${r.losses}</td><td>${r.points}</td>
         </tr>`).join('')}</tbody></table></div></div>
     </section>
     <section class="group-matches" aria-labelledby="group-matches-title">
@@ -1642,17 +1754,23 @@ function viewPlayoff(){
       const w = fin.result === 'a' ? tName(fin.team_a) : tName(fin.team_b);
       return `<div class="champ">${svg(ICON.cup)}<div><div class="t">Vinner av ${pool.toUpperCase()}-sluttspillet</div><div class="n">${esc(w || '')}</div></div></div>`;
     })() : '';
-    const roundDefs = ['r16','qf','sf']
-      .filter(stage => poolMatches.some(m => m.stage === `${pool}_${stage}`))
-      .map(stage => ({ title:STAGE[stage] || stage, stages:[stage] }));
-    const medals = ['final','bronze'].filter(stage => poolMatches.some(m => m.stage === `${pool}_${stage}`));
-    if(medals.length) roundDefs.push({ title:'Finale og bronse', stages:medals });
-    const rounds = roundDefs.map(round => `<section class="round"><h3>${esc(round.title)}</h3><div class="ties">${round.stages.flatMap(stage =>
-      poolMatches.filter(m => m.stage === `${pool}_${stage}`).sort((a,b) => (a.slot||0) - (b.slot||0))
-    ).map(renderTie).join('')}</div></section>`).join('');
+    const stageMatches = stage => poolMatches
+      .filter(m => m.stage === `${pool}_${stage}`)
+      .sort((a,b) => (a.slot || 0) - (b.slot || 0));
+    const semis = stageMatches('sf');
+    const earlier = ['r16','qf'].flatMap(stage => stageMatches(stage));
+    const final = stageMatches('final');
+    const bronze = stageMatches('bronze');
+    const stageBlock = (title, matches, cls = '') => matches.length ? `<section class="knockout-stage ${cls}"><h3>${esc(title)}</h3><div class="ties">${matches.map(renderTie).join('')}</div></section>` : '';
+    const flow = `<div class="knockout-flow">
+      ${earlier.length ? stageBlock('Innledende knockout', earlier) + '<div class="knockout-connector" aria-hidden="true"></div>' : ''}
+      ${stageBlock('Semifinaler', semis, 'semifinals')}
+      ${(semis.length && (final.length || bronze.length)) ? '<div class="knockout-connector" aria-hidden="true"></div>' : ''}
+      <div class="knockout-medals">${stageBlock('Finale', final, 'final')}${stageBlock('Bronsefinale', bronze, 'bronze')}</div>
+    </div>`;
     return `<section class="knockout-pool ${S.playoffView === pool ? 'is-selected' : ''}" data-pool="${pool}" aria-label="${pool.toUpperCase()}-sluttspill">
       <header class="knockout-pool-head"><b>${pool.toUpperCase()}</b><span>${pool.toUpperCase()}-sluttspill</span></header>
-      ${champion}<div class="bracket" id="bracket-${pool}">${rounds}</div>
+      ${champion}${flow}
     </section>`;
   };
   const pools = ['a','b'].filter(pool => po.some(m => m.stage.startsWith(pool + '_')));
@@ -1747,34 +1865,32 @@ function viewAdmin(){
       <span class="arw">${svg(ICON.chev,'width:15px;height:15px;stroke-width:2')}</span></button>`;
 
   const latest = S.audit[0];
-  return `${adminAlertPanel()}<div class="stats">
+  return `${adminAlertPanel()}${phaseControl()}<div class="stats">
       <div><b class="num">${S.teams.length}</b><small>lag</small></div>
       <div><b class="num">${progress.done}/${progress.total}</b><small>kamper spilt</small></div>
       <div><b class="num">${S.t.num_courts}</b><small>baner</small></div>
       <div><b class="num">${Math.round(S.t.match_seconds/60)}</b><small>min/kamp</small></div>
     </div>
     <div class="progress-card"><div class="progress-copy"><b>Turneringsfremdrift</b><span>${progress.pct}%</span></div><div class="progress-track"><i style="transform:scaleX(${progress.pct / 100})"></i></div></div>
-    <div class="eyebrow">Turneringskontroll</div>
-    ${phaseControl()}
     ${isBeforeStart ? `<div class="eyebrow">Før start</div>
-      <div class="rows">
+      <div class="admin-tools">
         ${row('teams', ICON.people, 'Lag og puljer', teamSummary)}
         ${row('setup', ICON.cog, 'Innstillinger', `${Math.round(S.t.match_seconds/60)} min · ${S.t.num_courts} baner · 56 kamper`)}
         ${row('keys', ICON.key, 'Koder til lagene', S.teams.length ? 'Del ut én kode per lag' : 'Kommer når lagene er lagt inn')}
         ${row('begin', ICON.play, 'Trekk grupper', S.teams.length === 16 ? 'Fire tilfeldige grupper med fire lag' : 'Fyll inn alle 16 lag først')}
       </div>` : `<div class="eyebrow">Tilgang og trekning</div>
-      <p class="phase-note">Trekket er offentlig og låst${S.t.drawn_at ? ` siden ${esc(new Date(S.t.drawn_at).toLocaleTimeString('nb-NO', {hour:'2-digit', minute:'2-digit'}))}` : ''}. Lagliste og fellesinnstillinger kan bare endres etter full nullstilling.</p>
-      <div class="rows">${row('keys', ICON.key, 'Koder til lagene', 'Se, kopier eller lag en ny enkeltkode')}</div>`}
+      <p class="phase-note">Trekket er offentlig og låst${S.t.drawn_at ? ` siden ${esc(new Date(S.t.drawn_at).toLocaleTimeString('nb-NO', {hour:'2-digit', minute:'2-digit'}))}` : ''}. Nullstilling beholder lag, puljer, koder og fellesinnstillinger.</p>
+      <div class="admin-tools">${row('keys', ICON.key, 'Koder til lagene', 'Se, kopier eller lag en ny enkeltkode')}</div>`}
     <div class="eyebrow">Under turneringen</div>
-    <div class="rows">
+    <div class="admin-tools">
       ${row('tv', ICON.tv, 'Kun oversikt', 'Bare bane, lag og klokke i fullskjerm')}
       ${row('teamStatus', ICON.people, 'Lagstatus og ventetid', 'Se hvem som spiller, er kalt inn eller venter')}
       ${latest?.can_undo ? row('undo', ICON.chev, 'Angre siste handling', latest.label) : ''}
     </div>
-    ${S.audit.length ? `<div class="eyebrow">Siste endringer</div><div class="activity">${S.audit.slice(0,6).map(a => `<div class="activity-row"><b>${esc(a.label)}</b><time>${esc(shortTime(a.created_at))}</time><small>${esc(a.actor_name)}</small></div>`).join('')}</div>` : ''}
+    ${S.audit.length ? `<details class="admin-activity"><summary>Siste endringer <span>${S.audit.length}</span></summary><div class="activity">${S.audit.slice(0,6).map(a => `<div class="activity-row"><b>${esc(a.label)}</b><time>${esc(shortTime(a.created_at))}</time><small>${esc(a.actor_name)}</small></div>`).join('')}</div></details>` : ''}
     <div class="eyebrow">Farlig</div>
-    <div class="rows">
-      ${row('wipe', ICON.trash, 'Nullstill alt', 'Sletter lag, koder og resultater', 'warn')}
+    <div class="admin-tools">
+      ${row('wipe', ICON.trash, 'Nullstill alt', 'Beholder lag, puljer, koder og rettigheter', 'warn')}
     </div>
     <div style="margin-top:20px"><button class="btn ghost block" data-do="out">Logg ut</button></div>`;
 }
@@ -1831,7 +1947,7 @@ function ask(title, body, cta, fn, danger){
   box.querySelector('[data-x="yes"]').onclick = () => { close(); fn(); };
 }
 function askSignOut(){
-  ask('Logge ut?', S.role === 'admin' ? 'Du må skrive inn arrangørkoden igjen for å komme tilbake.' : 'Du må skrive inn lagkoden igjen for å komme tilbake.', 'Logg ut', signOut);
+  ask('Logge ut?', S.role === 'admin' ? 'Du må skrive inn arrangørlagets kode igjen for å komme tilbake.' : 'Du må skrive inn lagkoden igjen for å komme tilbake.', 'Logg ut', signOut);
 }
 
 function confirmPhase(action){
@@ -1887,16 +2003,16 @@ function confirmReopen(id){
   ask('Gjenåpne kampen?', 'Resultatet fjernes og kampen legges tilbake i køen.', 'Gjenåpne', () => rpc('kubb_reopen_match', { p_match:id }, 'Kampen er åpnet igjen'));
 }
 function confirmFullReset(){
-  ask('Nullstille hele turneringen?', 'Lag, koder, kamper og resultater slettes. Du må bekrefte én gang til.', 'Fortsett', sheetResetConfirm, true);
+  ask('Nullstille turneringen?', 'Kamper, resultater og sluttspill slettes. Lag, puljer, koder og rettigheter beholdes.', 'Fortsett', sheetResetConfirm, true);
 }
 function sheetResetConfirm(){
-  const { box, close } = sheet(`<h2>Siste bekreftelse</h2><p class="lede">Skriv <b>NULLSTILL</b> for å slette hele turneringen.</p>
+  const { box, close } = sheet(`<h2>Siste bekreftelse</h2><p class="lede">Skriv <b>NULLSTILL</b> for å starte kampene på nytt. Lag og oppsett beholdes.</p>
     <label class="field"><span>Bekreftelse</span><input id="reset-word" autocomplete="off" autocapitalize="characters" placeholder="NULLSTILL"></label>
-    <div class="cluster" style="margin-top:20px"><button class="btn" data-x="cancel">Avbryt</button><button class="btn danger" data-x="reset" disabled>Slett alt</button></div>`);
+    <div class="cluster" style="margin-top:20px"><button class="btn" data-x="cancel">Avbryt</button><button class="btn danger" data-x="reset" disabled>Nullstill kampene</button></div>`);
   const input = box.querySelector('#reset-word'), reset = box.querySelector('[data-x="reset"]');
   input.oninput = () => { reset.disabled = input.value.trim().toUpperCase() !== 'NULLSTILL'; };
   box.querySelector('[data-x="cancel"]').onclick = close;
-  reset.onclick = async () => { const ok = await rpc('kubb_admin_reset', {}, 'Alt er nullstilt'); if(ok) close(); };
+  reset.onclick = async () => { const ok = await rpc('kubb_admin_reset', {}, 'Kampene er nullstilt. Lag og oppsett er beholdt.'); if(ok) close(); };
 }
 
 function sheetTiebreak(stage, grp){
@@ -1935,27 +2051,38 @@ function sheetResult(id, editing = false){
   const a = tName(m.team_a) || '?', b = tName(m.team_b) || '?';
   const r = left(m);
   const knockoutShootout = !isGroupStage(m.stage) && r <= 0;
-  const status = editing ? 'Endringen oppdaterer resultatet med én gang.' : m.status === 'paused' ? 'Kampen er pauset' : knockoutShootout ? 'Tiden er ute. Kampen må avgjøres med straffekast.' : r <= 0 ? `Tiden gikk ut for ${clock(-r).replace('+','')} siden` : `${clock(r)} igjen av kampen`;
+  const status = editing ? 'Kontroller valget før du lagrer endringen.' : m.status === 'paused' ? 'Kampen er pauset' : knockoutShootout ? 'Tiden er ute. Kampen må avgjøres med straffekast.' : r <= 0 ? `Tiden gikk ut for ${clock(-r).replace('+','')} siden` : `${clock(r)} igjen av kampen`;
   const affected = editing ? downstreamMatches(id).filter(next => next.team_a || next.team_b || next.status !== 'queued') : [];
   const needsReset = affected.some(next => ['ready','live','paused','finished'].includes(next.status));
   const impact = affected.length ? `<div class="impact"><b>Påvirker ${affected.length} senere ${affected.length === 1 ? 'kamp' : 'kamper'}</b>
     <p>${affected.slice(0,3).map(next => `${esc(next.label || stageName(next.stage))} (${esc(matchStateLabel(next))})`).join(' · ')}${affected.length > 3 ? ` · og ${affected.length - 3} til` : ''}</p></div>` : '';
   const { box, close } = sheet(`
-    <h2>${editing ? 'Endre resultat' : knockoutShootout ? 'Straffekast · velg vinner' : 'Hvem vant?'}</h2>
-    <p class="lede">${esc(m.label || 'Kamp')} · ${esc(status)}</p>
+    <h2>${editing ? 'Endre resultat' : knockoutShootout ? 'Straffekast · velg vinner' : 'Registrer resultat'}</h2>
+    <p class="lede">${esc(status)}</p>
+    <div class="result-context"><small>${esc(m.label || 'Kamp')}${m.court ? ` · bane ${m.court}` : ''}</small><b>${esc(a)}</b><b>${esc(b)}</b></div>
     ${impact}
     ${needsReset ? `<button class="btn danger block" data-x="reset-path">Nullstill senere kamper først</button>` : ''}
-    <button class="choice accent" data-r="a" ${needsReset ? 'disabled' : ''}><span><b>${esc(a)}</b><small>${isGroupStage(m.stage) ? '3 poeng' : knockoutShootout ? 'Vinner etter straffekast' : 'Vinner kampen'}</small></span></button>
-    <button class="choice accent" data-r="b" ${needsReset ? 'disabled' : ''}><span><b>${esc(b)}</b><small>${isGroupStage(m.stage) ? '3 poeng' : knockoutShootout ? 'Vinner etter straffekast' : 'Vinner kampen'}</small></span></button>
-    ${isGroupStage(m.stage) ? `<button class="choice" data-r="draw" ${needsReset ? 'disabled' : ''}><span><b>Uavgjort</b><small>1 poeng til hvert lag</small></span></button>` : ''}
+    <button class="choice result-choice" data-r="a" aria-pressed="false" ${needsReset ? 'disabled' : ''}><span class="k">A</span><span><b>${esc(a)}</b><small>${isGroupStage(m.stage) ? 'Seier' : knockoutShootout ? 'Vinner etter straffekast' : 'Vinner kampen'}</small></span></button>
+    <button class="choice result-choice" data-r="b" aria-pressed="false" ${needsReset ? 'disabled' : ''}><span class="k">B</span><span><b>${esc(b)}</b><small>${isGroupStage(m.stage) ? 'Seier' : knockoutShootout ? 'Vinner etter straffekast' : 'Vinner kampen'}</small></span></button>
+    ${isGroupStage(m.stage) ? `<button class="choice result-choice" data-r="draw" aria-pressed="false" ${needsReset ? 'disabled' : ''}><span class="k">U</span><span><b>Uavgjort</b><small>Poeng til begge lag</small></span></button>` : ''}
+    <button class="btn primary block result-save" data-x="save" disabled>${editing ? 'Lagre endring' : 'Lagre resultat'}</button>
     ${editing ? `<button class="btn danger block" data-x="reopen">Gjenåpne kampen</button>` : ''}
     <div style="margin-top:20px"><button class="btn ghost block" data-x="cancel">Avbryt</button></div>`);
 
-  box.querySelectorAll('[data-r]').forEach(btn => btn.onclick = () => {
-    const res = btn.dataset.r;
-    close();
-    rpc(editing ? 'kubb_admin_correct_result' : 'kubb_finish_match', { p_match:id, p_result:res }, editing ? 'Resultatet er oppdatert' : 'Resultatet er lagret');
-  });
+  let selected = editing ? m.result : null;
+  const choices = [...box.querySelectorAll('[data-r]')];
+  const save = box.querySelector('[data-x="save"]');
+  const drawSelection = () => {
+    choices.forEach(button => button.setAttribute('aria-pressed', String(button.dataset.r === selected)));
+    save.disabled = !selected || needsReset;
+  };
+  choices.forEach(button => button.onclick = () => { selected = button.dataset.r; drawSelection(); });
+  drawSelection();
+  save.onclick = async () => {
+    save.classList.add('busy');
+    const ok = await rpc(editing ? 'kubb_admin_correct_result' : 'kubb_finish_match', { p_match:id, p_result:selected }, editing ? 'Resultatet er oppdatert' : 'Resultatet er lagret');
+    if(ok) close(); else save.classList.remove('busy');
+  };
   const resetPath = box.querySelector('[data-x="reset-path"]');
   if(resetPath) resetPath.onclick = () => { close(); confirmResetDownstream(id); };
   if(editing) box.querySelector('[data-x="reopen"]').onclick = () => { close(); confirmReopen(id); };
@@ -2058,7 +2185,7 @@ function sheetSetup(){
 function sheetTeams(){
   const names = S.teams.slice().sort((a,b) => (a.seed||0) - (b.seed||0)).map(t => t.name);
   const fields = Array.from({length:16}, (_, i) => `<label class="team-slot">
-    <span>Lag ${i + 1}${i < 2 ? ' · arrangør' : ''}</span>
+    <span>Lag ${i + 1}${i < 2 ? ' · arrangørlag' : ''}</span>
     <input class="team-name" maxlength="40" autocomplete="off" placeholder="Lagnavn" value="${esc(names[i] || '')}">
   </label>`).join('');
   const { box, close } = sheet(`

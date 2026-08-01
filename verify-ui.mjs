@@ -1,5 +1,6 @@
 import { chromium } from 'playwright';
-import { existsSync } from 'node:fs';
+import { existsSync, mkdirSync } from 'node:fs';
+import { join } from 'node:path';
 
 const chrome = [
   'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe',
@@ -7,6 +8,8 @@ const chrome = [
   'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe'
 ].find(existsSync);
 if (!chrome) throw new Error('Fant ikke Chrome eller Edge for UI-testen');
+const captureDir = process.env.KUBB_CAPTURE_DIR || '';
+if (captureDir) mkdirSync(captureDir, { recursive:true });
 
 const now = Date.now();
 const names = ['Kubbkongene','Furu Fighters','Plankepiratene','Rullesteinene','Kast & Kubb','Treffsikre','Kongelaget','Vikings','Kubbkameratene','Pinnekasterne','Gressgjengen','Parklaget','Kubbklubben','Sommerkast','Kongen står','Siste pinne'];
@@ -95,6 +98,7 @@ const audit = [
 
 const browser = await chromium.launch({ headless:true, executablePath:chrome });
 const page = await browser.newPage({ viewport:{ width:390, height:844 } });
+const capture = async name => { if(captureDir) await page.screenshot({ path:join(captureDir, `${name}.png`), fullPage:true }); };
 const errors = [];
 let expiredFinishCalls = 0;
 await page.addInitScript(() => {
@@ -154,16 +158,21 @@ try {
   if (courtNumbers.join(',') !== '1,2,3,4,5') throw new Error(`Banerekkefølgen er feil: ${courtNumbers.join(',')}`);
   if (await page.locator('.court-next.assigned').count() !== 4) throw new Error('Neste kamp er ikke tydelig markert på alle aktive baner');
   if (!await page.locator('.court-next.assigned').getByText(/Gressgjengen – Parklaget/).count()) throw new Error('Valgt neste kamp vises ikke på riktig bane');
-  if (await page.locator('.admin-alert').count() !== 2) throw new Error('Forventet varsler for utløpt tid og forsinket start');
+  if (await page.locator('.admin-alert').count() !== 1) throw new Error('Forventet ett separat varsel i tillegg til den prioriterte arrangørhandlingen');
   if (!await page.locator('.turn-call').getByText(/Dere spiller på bane 1/).count()) throw new Error('Vedvarende banevarsel mangler');
   if (await page.getByRole('button', { name:'+5 min', exact:true }).count() !== 4) throw new Error('Ekstra tid mangler på pågående kamper');
   if (await page.getByRole('button', { name:'Flytt / endre', exact:true }).count()) throw new Error('Flytting til en annen bane vises fortsatt');
   if (!await page.getByRole('button', { name:'Endre kamp', exact:true }).count()) throw new Error('Endre kamp mangler');
+  await capture('01-baner');
   await page.waitForFunction(id => window.__expiryAlarms.includes(id), matchId(4), { timeout:5000 });
   if (expiredFinishCalls) throw new Error('Utløpt tid registrerer fortsatt automatisk uavgjort');
   await page.locator(`#c-${matchId(4)}`).getByRole('button', { name:'Avslutt', exact:true }).click();
   if (await page.locator('.sheet [data-r="a"]').count() !== 1 || await page.locator('.sheet [data-r="b"]').count() !== 1) throw new Error('Seier kan ikke velges etter utløpt tid');
   if (!await page.locator('.sheet').getByRole('button', { name:/Uavgjort/ }).count()) throw new Error('Gruppespill kan ikke registreres uavgjort etter utløpt tid');
+  const resultSave = page.locator('.sheet').getByRole('button', { name:'Lagre resultat' });
+  if (!await resultSave.isDisabled()) throw new Error('Resultatet kan lagres før et utfall er valgt');
+  await page.locator('.sheet [data-r="a"]').click();
+  if (await resultSave.isDisabled() || !await page.locator('.sheet').isVisible()) throw new Error('Resultatvalget mangler et eksplisitt lagringstrinn');
   await page.locator('.sheet').getByRole('button', { name:'Avbryt' }).click();
   await page.locator(`#c-${matchId(5)}`).getByRole('button', { name:'Endre kamp', exact:true }).click();
   if (!await page.locator('.sheet').getByRole('heading', { name:'Velg ny kamp til bane 5' }).count()) throw new Error('Endre kamp åpner ikke kampkøen direkte');
@@ -180,8 +189,10 @@ try {
   const adminText = (await page.locator('#view').innerText()).replace(/\s+/g, ' ');
   if (!adminText.includes('0/56') || !adminText.includes('0%')) throw new Error('Fast fremdrift for 56 kamper mangler');
   if (!adminText.includes('Pauset kamp') || !adminText.includes('Kubbkongene')) throw new Error('Revisjonsloggen vises ikke');
+  if (!adminText.includes('Beholder lag, puljer, koder og rettigheter')) throw new Error('Nullstill alt forklarer ikke at lagoppsettet beholdes');
   if (!await page.getByRole('button', { name:'Avslutt første gruppespill' }).isDisabled()) throw new Error('Faseovergang kan brukes før kampene er ferdige');
   if (adminText.includes('Trekk grupper på nytt')) throw new Error('En offentlig trekning kan fortsatt kjøres på nytt');
+  await capture('02-arrangor');
   await page.getByRole('button', { name:/Lagstatus og ventetid/ }).click();
   if (await page.locator('.status-row').count() !== 16) throw new Error('Lagstatus viser ikke alle 16 lag');
   if (await page.getByRole('button', { name:'Stryk lag', exact:true }).count() !== 16) throw new Error('Arrangøren kan ikke stryke hvert lag');
@@ -199,12 +210,13 @@ try {
   if (await page.locator('.group-board').getByText('2. plass fra gruppe A · automatisk', { exact:true }).count() !== 1) throw new Error('Automatisk kildeplass vises ikke i tabellen');
   if (await page.getByRole('button', { name:/Endre plass .* i A2/ }).count() !== 4) throw new Error('Arrangøren kan ikke endre alle plassene i puljen');
   if (await page.locator('.group-matches .mrow').count() !== 6 || await page.locator('.group-matches .chip').filter({ hasText:'Planlagt' }).count() !== 6) throw new Error('En full pulje viser ikke seks automatisk planlagte kamper');
+  await capture('03-gruppespill');
   await page.getByRole('button', { name:'Endre plass 1 i A2', exact:true }).click();
   if (await page.locator('.sheet [data-team]').count() !== 17) throw new Error('Arrangøren får ikke velge automatisk plassering eller alle 16 lag');
   await page.locator('.sheet [data-team]').filter({ hasText:'Furu Fighters' }).click();
   await page.locator('.sheet').waitFor({ state:'detached' });
   const firstSlot = page.locator('.group-board tbody tr').first();
-  if (!await firstSlot.getByText('Furu Fighters', { exact:true }).count() || !await firstSlot.getByText('Satt manuelt av arrangør', { exact:true }).count()) throw new Error('Manuell reserveplassering vises ikke i tabellen');
+  if (!await firstSlot.getByText('Furu Fighters', { exact:true }).count() || !await firstSlot.getByText('Satt manuelt av arrangør', { exact:true }).count()) throw new Error(`Manuell reserveplassering vises ikke i tabellen: ${await firstSlot.innerText()}`);
   const rebuiltMatches = await page.locator('.group-matches .mrow .side b').allTextContents();
   if (!rebuiltMatches.includes('Furu Fighters') || rebuiltMatches.includes('Kubbkongene')) throw new Error('Kampoppsettet ble ikke oppdatert etter lagbyttet');
 
@@ -213,6 +225,10 @@ try {
   if (!await page.locator('.knockout-pool[data-pool="a"]').isVisible() || await page.locator('.knockout-pool[data-pool="b"]').isVisible()) throw new Error('Mobilvisningen viser ikke valgt A-sluttspill alene');
   await page.getByRole('button', { name:'B-sluttspill', exact:true }).click();
   if (!await page.locator('.knockout-pool[data-pool="b"]').isVisible() || await page.locator('.knockout-pool[data-pool="a"]').isVisible()) throw new Error('Det går ikke å velge B-sluttspillet på mobil');
+  if (!await page.locator('.knockout-pool[data-pool="b"] .knockout-flow').count() || await page.locator('.knockout-pool[data-pool="b"] .bracket').count()) throw new Error('Knockout vises ikke som en vertikal mobilflyt');
+  const bracketOverflow = await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 1);
+  if (bracketOverflow) throw new Error('Knockouttreet lager horisontal side-scroll på mobil');
+  await capture('04-knockout');
   await page.waitForTimeout(30);
   const focusedTag = await page.evaluate(() => document.activeElement?.tagName);
   if (['INPUT','TEXTAREA','SELECT'].includes(focusedTag)) throw new Error('Tastaturfelt beholder fokus på sluttspillsiden');
