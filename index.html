@@ -5,6 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#f6f7f8">
 <meta name="description" content="Live kampklokker, tabell og sluttspill for kubbmesterskapet.">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<link rel="manifest" href="/manifest.webmanifest">
 <title>Kilkast</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='7' fill='%23191c22'/><rect x='9' y='7' width='5' height='18' rx='1.4' fill='%23f6f7f8'/><rect x='18' y='12' width='5' height='13' rx='1.4' fill='%2358c48a'/></svg>">
 <style>
@@ -687,6 +690,34 @@ const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt
 const buzz = p => { try { navigator.vibrate?.(p); } catch(_){} };
 const reduced = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
 
+let alarmAudio = null;
+function unlockAlarmAudio(){
+  const AudioContext = window.AudioContext || window.webkitAudioContext;
+  if(!AudioContext) return;
+  try {
+    if(!alarmAudio) alarmAudio = new AudioContext();
+    if(alarmAudio.state === 'suspended') alarmAudio.resume().catch(() => {});
+  } catch(_){}
+}
+function playTimeAlarm(){
+  if(!alarmAudio || alarmAudio.state !== 'running') return;
+  const base = alarmAudio.currentTime + .02;
+  [880, 660, 880].forEach((frequency, index) => {
+    const start = base + index * .38;
+    const oscillator = alarmAudio.createOscillator();
+    const gain = alarmAudio.createGain();
+    oscillator.type = 'square';
+    oscillator.frequency.setValueAtTime(frequency, start);
+    gain.gain.setValueAtTime(.0001, start);
+    gain.gain.exponentialRampToValueAtTime(.24, start + .025);
+    gain.gain.exponentialRampToValueAtTime(.0001, start + .28);
+    oscillator.connect(gain).connect(alarmAudio.destination);
+    oscillator.start(start);
+    oscillator.stop(start + .3);
+  });
+}
+document.addEventListener('pointerdown', unlockAlarmAudio, { passive:true });
+
 const mem = {};
 const store = {
   get: k => { try { return localStorage.getItem(k); } catch(_){ return mem[k] ?? null; } },
@@ -717,7 +748,8 @@ const S = {
   t:{ name:'Kilkast', match_seconds:2400, num_courts:6, phase:'setup', qualifiers_per_group:2 },
   teams:[], matches:[], standings:[], advancement:[], audit:[],
   offset:0, tab:'courts', filter:'all', groupStage:'group', groupView:null, playoffView:'a', tv:false, ready:false,
-  seenOnCourt:{}, assignmentPops:new Set(), adminAlerted:new Set()
+  seenOnCourt:{}, assignmentPops:new Set(), adminAlerted:new Set(),
+  expiryAlarmed:new Set(), timerRemaining:{}
 };
 const isAdmin = () => S.role === 'admin';
 const canAct  = () => S.role === 'admin' || S.role === 'team';
@@ -869,27 +901,96 @@ async function boot(){
     selectTeamGroup();
   } else S.tab = 'courts';
   buildNav(); paint(); listen();
+  registerServiceWorker();
+  syncExistingPushSubscription();
   setInterval(beat, 250);
-  setInterval(finishExpiredMatches, 10000);
-  finishExpiredMatches();
   setInterval(() => { if(isAdmin()){ notifyAdminAlerts(); paint(); } }, 15000);
   setInterval(async () => { const { data } = await sb.rpc('kubb_now'); if(data) S.offset = Date.parse(data) - Date.now(); }, 60000);
   setInterval(async () => { await pullAll(); paint(); }, 25000);
 }
 
 /* ---------- varsler ---------- */
+const PUSH_PUBLIC_KEY = 'BFzuQeDUz2AWjtrMdqq_yTdww_ajLofEzxqsLgr-RDfd1wn7Mi0HL5fiwFYfrwB8dkB8wWVprcAPe8DZC4lEDLI';
+const isStandalone = () => matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+const isIOS = () => /iphone|ipad|ipod/i.test(navigator.userAgent);
 const notificationsEnabled = () => 'Notification' in window && Notification.permission === 'granted' && store.get('kubb.notifications') === 'on';
-function sendNotification(title, body){
+function pushKey(value){
+  const padding = '='.repeat((4 - value.length % 4) % 4);
+  const raw = atob((value + padding).replace(/-/g, '+').replace(/_/g, '/'));
+  return Uint8Array.from([...raw].map(char => char.charCodeAt(0)));
+}
+async function registerServiceWorker(){
+  if(!('serviceWorker' in navigator)) return null;
+  try { return await navigator.serviceWorker.register('/sw.js'); } catch(_) { return null; }
+}
+async function registerPushSubscription(create){
+  if(!S.code || !('serviceWorker' in navigator) || !('PushManager' in window) || !('Notification' in window)) return false;
+  if(Notification.permission !== 'granted') return false;
+  const registration = await registerServiceWorker();
+  if(!registration) return false;
+  let subscription = await registration.pushManager.getSubscription();
+  if(!subscription && create){
+    subscription = await registration.pushManager.subscribe({
+      userVisibleOnly:true,
+      applicationServerKey:pushKey(PUSH_PUBLIC_KEY)
+    });
+  }
+  if(!subscription) return false;
+  const { error } = await sb.rpc('kubb_register_push_subscription', {
+    p_code:S.code,
+    p_subscription:subscription.toJSON()
+  });
+  if(error) throw error;
+  store.set('kubb.push', 'on');
+  return true;
+}
+async function syncExistingPushSubscription(){
+  if(store.get('kubb.push') !== 'on') return;
+  try { await registerPushSubscription(false); } catch(_){}
+}
+function sendNotification(title, body, tag){
   if(!notificationsEnabled()) return;
-  try { new Notification(title, { body, tag:`kubb-${title}-${body}`, renotify:false }); } catch(_){}
+  const options = { body, tag:tag || `kubb-${title}-${body}`, renotify:false };
+  try {
+    if('serviceWorker' in navigator) navigator.serviceWorker.ready.then(registration => registration.showNotification(title, options));
+    else new Notification(title, options);
+  } catch(_){}
+}
+function triggerTimeAlarm(m){
+  const involved = m.team_a === S.teamId || m.team_b === S.teamId;
+  if((!isAdmin() && !involved) || S.expiryAlarmed.has(m.id)) return;
+  S.expiryAlarmed.add(m.id);
+  playTimeAlarm();
+  buzz([300,150,300,150,600]);
+  const court = m.court ? ` på bane ${m.court}` : '';
+  const teams = `${tName(m.team_a) || '?'} mot ${tName(m.team_b) || '?'}`;
+  toast(`Tiden er ute${court} — resultatet må registreres`);
+  sendNotification(`Tiden er ute${court}`, `${teams}. Kampen er fortsatt åpen for resultat.`, `kubb-expiry-${m.id}`);
+  document.dispatchEvent(new CustomEvent('kubb:time-expired', { detail:{ matchId:m.id, court:m.court } }));
+}
+function showPushInstallInstructions(){
+  const { box, close } = sheet(`
+    <h2>Varsler med låst skjerm</h2>
+    <p class="lede">På iPhone må Kilkast åpnes som en app for å kunne varsle mens skjermen er svart.</p>
+    <div class="list">
+      <div class="item"><span class="k">1</span><span><b>Åpne siden i Safari</b><small>Trykk på deleknappen nederst.</small></span></div>
+      <div class="item"><span class="k">2</span><span><b>Legg til på Hjem-skjermen</b><small>Velg Kilkast-ikonet fra hjemskjermen etterpå.</small></span></div>
+      <div class="item"><span class="k">3</span><span><b>Slå på varsler i appen</b><small>Trykk samme varselknapp én gang til.</small></span></div>
+    </div>
+    <button class="btn primary block" data-x="close">Skjønner</button>`);
+  box.querySelector('[data-x="close"]').onclick = close;
 }
 async function enableNotifications(){
-  if(!('Notification' in window)){ toast('Denne nettleseren støtter ikke varsler', true); return; }
+  if(isIOS() && !isStandalone()){ showPushInstallInstructions(); return; }
+  if(!('Notification' in window)){ toast('Denne nettleseren støtter ikke varsler med låst skjerm', true); return; }
   if(Notification.permission === 'denied'){ toast('Varsler er slått av i nettleserens innstillinger', true); return; }
   const permission = await Notification.requestPermission();
   if(permission === 'granted'){
     store.set('kubb.notifications', 'on');
-    toast('Varsler er på — du får beskjed når laget ditt får bane');
+    try {
+      const background = await registerPushSubscription(true);
+      toast(background ? 'Varsler er på — også med låst skjerm' : 'Varsler er på mens appen er åpen');
+    } catch(_) { toast('Varsler virker mens appen er åpen, men bakgrunnsvarsel kunne ikke aktiveres', true); }
   } else toast('Varsler ble ikke slått på', true);
   paint();
 }
@@ -957,9 +1058,10 @@ function adminAlertPanel(){
   return `<aside class="admin-alerts" aria-label="Varsler til arrangør">${alerts.map(a => `<div class="admin-alert" data-kind="${a.kind}"><i class="mark-alert"></i><span><b>${esc(a.title)}</b><small>${esc(a.body)}</small></span></div>`).join('')}</aside>`;
 }
 function notificationButton(){
-  if(S.tv || S.role === 'guest' || !('Notification' in window)) return '';
+  if(S.tv || S.role === 'guest') return '';
   const enabled = notificationsEnabled();
-  return `<button class="btn ${enabled ? 'quiet' : 'ghost'} sm" data-do="notify">${enabled ? 'Varsler er på' : 'Varsle meg når det er vår tur'}</button>`;
+  const background = enabled && store.get('kubb.push') === 'on';
+  return `<button class="btn ${enabled ? 'quiet' : 'ghost'} sm" data-do="notify">${background ? 'Varsler også med låst skjerm' : enabled ? 'Varsler er på' : 'Slå på varsler'}</button>`;
 }
 
 // Denne ligger øverst i appen helt til laget er ferdig på banen. Den virker
@@ -1003,16 +1105,6 @@ document.addEventListener('visibilitychange', restoreWakeLock);
 function wakeLockButton(){
   if(S.tv || !('wakeLock' in navigator)) return '';
   return `<button class="btn ${keepAwake() ? 'quiet' : 'ghost'} sm" data-do="awake">${keepAwake() ? 'Skjerm holdes våken' : 'Hold skjermen våken'}</button>`;
-}
-
-let finishingExpired = false;
-async function finishExpiredMatches(){
-  if(finishingExpired || !isAdmin() || !S.code) return;
-  finishingExpired = true;
-  try {
-    const { data } = await sb.rpc('kubb_finish_expired_matches', { p_code:S.code });
-    if(data > 0){ await pullAll(); paint(); toast(data === 1 ? 'Tiden er ute — kampen ble uavgjort' : `${data} kamper ble uavgjort da tiden gikk ut`); }
-  } finally { finishingExpired = false; }
 }
 
 /* ================================================================
@@ -1247,6 +1339,13 @@ function overviewCourtCard(c, m){
 
 /* live-klokke: oppdaterer tekst, ikke DOM-struktur */
 function beat(){
+  S.matches.filter(m => m.status === 'live').forEach(m => {
+    const remaining = left(m);
+    const previous = S.timerRemaining[m.id];
+    S.timerRemaining[m.id] = remaining;
+    if(remaining > 0) S.expiryAlarmed.delete(m.id);
+    else if(previous == null || previous > 0) triggerTimeAlarm(m);
+  });
   document.querySelectorAll('[data-timer]').forEach(node => {
     const m = S.matches.find(x => x.id === node.dataset.timer);
     if(!m) return;

@@ -39,7 +39,7 @@ const matches = [
   makeMatch(1, 1, 'live',   0,  1, 12,   'Pulje A · runde 1'),
   makeMatch(2, 2, 'live',   2,  3, 41,   'Pulje A · runde 1'),
   makeMatch(3, 3, 'paused', 4,  5, 18,   'Pulje B · runde 1'),
-  makeMatch(4, 4, 'live',   6,  7, 26,   'Pulje B · runde 1'),
+  makeMatch(4, 4, 'live',   6,  7, 39.95,'Pulje B · runde 1'),
   makeMatch(5, 5, 'ready',  8,  9, null, 'Pulje C · runde 1', 6),
   makeMatch(6, 1, 'ready', 10, 11, null, 'Pulje C · runde 2', 1),
   makeMatch(7, null, 'queued', 12, 13, null, 'Pulje D · runde 1'),
@@ -96,6 +96,11 @@ const audit = [
 const browser = await chromium.launch({ headless:true, executablePath:chrome });
 const page = await browser.newPage({ viewport:{ width:390, height:844 } });
 const errors = [];
+let expiredFinishCalls = 0;
+await page.addInitScript(() => {
+  window.__expiryAlarms = [];
+  document.addEventListener('kubb:time-expired', event => window.__expiryAlarms.push(event.detail.matchId));
+});
 page.on('pageerror', error => errors.push(error.message));
 page.on('console', message => { if (message.type() === 'error') errors.push(message.text()); });
 
@@ -113,7 +118,7 @@ await page.route('https://rknxxzxywmfkwsvojfiv.supabase.co/**', route => {
   if (path.endsWith('/rpc/kubb_login')) return send({ ok:true, role:'admin', team_id:teams[0].id, team_name:teams[0].name, grp:'A' });
   if (path.endsWith('/rpc/kubb_now')) return send(new Date(now).toISOString());
   if (path.endsWith('/rpc/kubb_admin_recent_actions')) return send(audit);
-  if (path.endsWith('/rpc/kubb_finish_expired_matches')) return send(0);
+  if (path.endsWith('/rpc/kubb_finish_expired_matches')) { expiredFinishCalls++; return send(0); }
   if (path.endsWith('/rpc/kubb_admin_set_advancement_slot')) {
     const body = request.postDataJSON();
     const slot = advancement.find(row => row.destination_grp === body.p_destination_grp && row.destination_slot === Number(body.p_destination_slot));
@@ -154,6 +159,12 @@ try {
   if (await page.getByRole('button', { name:'+5 min', exact:true }).count() !== 4) throw new Error('Ekstra tid mangler på pågående kamper');
   if (await page.getByRole('button', { name:'Flytt / endre', exact:true }).count()) throw new Error('Flytting til en annen bane vises fortsatt');
   if (!await page.getByRole('button', { name:'Endre kamp', exact:true }).count()) throw new Error('Endre kamp mangler');
+  await page.waitForFunction(id => window.__expiryAlarms.includes(id), matchId(4), { timeout:5000 });
+  if (expiredFinishCalls) throw new Error('Utløpt tid registrerer fortsatt automatisk uavgjort');
+  await page.locator(`#c-${matchId(4)}`).getByRole('button', { name:'Avslutt', exact:true }).click();
+  if (await page.locator('.sheet [data-r="a"]').count() !== 1 || await page.locator('.sheet [data-r="b"]').count() !== 1) throw new Error('Seier kan ikke velges etter utløpt tid');
+  if (!await page.locator('.sheet').getByRole('button', { name:/Uavgjort/ }).count()) throw new Error('Gruppespill kan ikke registreres uavgjort etter utløpt tid');
+  await page.locator('.sheet').getByRole('button', { name:'Avbryt' }).click();
   await page.locator(`#c-${matchId(5)}`).getByRole('button', { name:'Endre kamp', exact:true }).click();
   if (!await page.locator('.sheet').getByRole('heading', { name:'Velg ny kamp til bane 5' }).count()) throw new Error('Endre kamp åpner ikke kampkøen direkte');
   if (await page.locator('.sheet').getByText(/Flytt til bane|Legg kampen tilbake i køen/).count()) throw new Error('Overflødige flytte- eller køkontroller vises fortsatt');
