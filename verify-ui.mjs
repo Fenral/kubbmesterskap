@@ -147,6 +147,12 @@ await page.route('https://rknxxzxywmfkwsvojfiv.supabase.co/**', route => {
 
 try {
   await page.goto('http://127.0.0.1:4173/index.html', { waitUntil:'domcontentloaded' });
+  if (!await page.locator('.auth .mark img').count()) throw new Error('Den nye Kilkasting2026-logoen mangler på innloggingen');
+  const installButton = page.getByRole('button', { name:'Legg appen på Hjem-skjermen', exact:true });
+  if (!await installButton.isVisible()) throw new Error('Innloggingen mangler knappen for å legge appen på Hjem-skjermen');
+  await installButton.click();
+  if (!await page.locator('.sheet').getByText('Legg Kilkasting2026 på Hjem-skjermen', { exact:true }).count()) throw new Error('Hjemskjermknappen viser ikke installasjonsveiledning');
+  await page.locator('.sheet').getByRole('button', { name:'Skjønner', exact:true }).click();
   for (const digit of ['1','2','3','4']) await page.getByRole('button', { name:digit, exact:true }).click();
   await page.locator('#whoName').getByText('Kubbkongene · arrangør').waitFor({ timeout:5000 });
 
@@ -201,9 +207,10 @@ try {
 
   await page.getByRole('button', { name:'Gruppespill', exact:true }).click();
   if (!await page.getByRole('button', { name:'Gruppespill 1', exact:true }).count() || !await page.getByRole('button', { name:'Gruppespill 2', exact:true }).count()) throw new Error('Valget mellom de to gruppespillene mangler');
+  if (!await page.locator('.mode.stage-switch').count()) throw new Error('Gruppespill bruker ikke mockens tydelige valgmeny');
   await page.getByRole('button', { name:'Gruppespill 2', exact:true }).click();
   const secondGroups = await page.locator('.group-tabs button').allTextContents();
-  if (secondGroups.join(',') !== 'A1,A2,B1,B2') throw new Error(`Gruppespill 2 viser ikke alle fire puljene: ${secondGroups.join(',')}`);
+  if (secondGroups.join(',') !== 'B1,B2,A1,A2') throw new Error(`Gruppespill 2 viser ikke alle fire puljene i avtalt rekkefølge: ${secondGroups.join(',')}`);
   if (await page.locator('.group-tabs button[aria-current="page"]').textContent() !== 'A2') throw new Error('Eget lag sin pulje åpnes ikke automatisk i gruppespill 2');
   if (await page.locator('#group-title').textContent() !== 'A2') throw new Error('Gruppespill 2 bruker ikke samme gruppevisning som gruppespill 1');
   if (await page.locator('.group-board tbody tr').count() !== 4) throw new Error('Valgt pulje viser ikke alle fire plassene');
@@ -225,7 +232,7 @@ try {
   if (!await page.locator('.knockout-pool[data-pool="a"]').isVisible() || await page.locator('.knockout-pool[data-pool="b"]').isVisible()) throw new Error('Mobilvisningen viser ikke valgt A-sluttspill alene');
   await page.getByRole('button', { name:'B-sluttspill', exact:true }).click();
   if (!await page.locator('.knockout-pool[data-pool="b"]').isVisible() || await page.locator('.knockout-pool[data-pool="a"]').isVisible()) throw new Error('Det går ikke å velge B-sluttspillet på mobil');
-  if (!await page.locator('.knockout-pool[data-pool="b"] .knockout-flow').count() || await page.locator('.knockout-pool[data-pool="b"] .bracket').count()) throw new Error('Knockout vises ikke som en vertikal mobilflyt');
+  if (!await page.locator('.knockout-pool[data-pool="b"] .bracket-flow').count() || !await page.locator('.knockout-pool[data-pool="b"] .bracket-match').count() || !await page.locator('.knockout-pool[data-pool="b"] .final-grid').count()) throw new Error('Knockout følger ikke mockens vertikale semifinaler og medaljekamper');
   const bracketOverflow = await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 1);
   if (bracketOverflow) throw new Error('Knockouttreet lager horisontal side-scroll på mobil');
   await capture('04-knockout');

@@ -8,8 +8,8 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <link rel="manifest" href="/manifest.webmanifest">
-<title>Kilkast</title>
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='7' fill='%23191c22'/><rect x='9' y='7' width='5' height='18' rx='1.4' fill='%23f6f7f8'/><rect x='18' y='12' width='5' height='13' rx='1.4' fill='%2358c48a'/></svg>">
+<title>Kilkasting2026</title>
+<link rel="icon" href="/app-icon.svg" type="image/svg+xml">
 <style>
 /* ============================================================
    KUBBMESTERSKAP — design tokens
@@ -193,8 +193,8 @@ main{max-width:960px;margin:0 auto;padding:var(--s4) var(--s4) var(--s7)}
 
 /* ---------------- innlogging ---------------- */
 .auth{max-width:340px;margin:0 auto;padding:min(10vh,72px) var(--s5) var(--s8);text-align:center}
-.mark{width:56px;height:56px;margin:0 auto var(--s5);border-radius:16px;background:var(--ink);display:grid;place-items:center;box-shadow:var(--shadow-2)}
-.mark svg{width:30px;height:30px}
+.mark{width:70px;height:70px;margin:0 auto var(--s5);border-radius:18px;background:var(--surface);border:1px solid var(--line);display:grid;place-items:center;overflow:hidden;box-shadow:var(--shadow-2)}
+.mark img{display:block;width:100%;height:100%;object-fit:contain}
 .auth h1{font-size:25px;letter-spacing:-.026em}
 .auth .lede{color:var(--ink-2);margin:6px 0 var(--s7);font-size:14.5px}
 .dots{display:flex;justify-content:center;gap:12px;margin-bottom:var(--s6);height:16px}
@@ -221,6 +221,7 @@ main{max-width:960px;margin:0 auto;padding:var(--s4) var(--s4) var(--s7)}
 .pad-grid button.text{background:transparent;border-color:transparent;box-shadow:none;font-family:var(--sans);font-size:14px;font-weight:560;color:var(--ink-2)}
 .pad-grid button[data-empty]{visibility:hidden}
 .auth .msg{min-height:22px;margin-top:var(--s5);font-size:13.5px;font-weight:560;color:var(--over)}
+.auth .install-app{margin-top:10px}
 
 /* ---------------- baner ---------------- */
 .courts{display:grid;gap:10px;grid-template-columns:1fr}
@@ -683,6 +684,33 @@ body.tv .track{height:3px}
 .knockout-medals .knockout-stage:first-child .tie{border-color:var(--ink);box-shadow:var(--shadow-2)}
 @media(min-width:480px){.knockout-medals{grid-template-columns:1fr 1fr}}
 
+/* Samme navigasjon og kampkort som i den godkjente mobilmocken. */
+.mode{display:flex;gap:3px;padding:3px;margin:0 0 var(--s4);border-radius:12px;background:var(--surface-2)}
+.mode button{flex:1;min-width:0;min-height:44px;padding:0 10px;border:0;border-radius:9px;background:transparent;color:var(--ink-2);font:650 13px/1 var(--sans);letter-spacing:-.012em}
+.mode button[aria-pressed="true"]{background:var(--surface);color:var(--ink);box-shadow:var(--shadow-1)}
+.stage-note{margin:-3px 2px var(--s4);color:var(--ink-3);font-size:12.5px;line-height:1.4}
+
+.bracket-pool-head{display:flex;align-items:center;gap:10px;margin:0 0 var(--s4)}
+.bracket-pool-head>b{display:grid;place-items:center;width:36px;height:36px;border-radius:11px;background:var(--ink);color:var(--on-ink);font:720 18px/.8 var(--mono)}
+.bracket-pool-head span{display:grid;gap:2px;min-width:0}
+.bracket-pool-head strong{font-size:17px;font-weight:690;letter-spacing:-.024em}
+.bracket-pool-head small{color:var(--ink-3);font-size:11.5px;font-weight:560}
+.bracket-flow{display:grid;gap:0;padding:2px 0 var(--s4)}
+.bracket-round>h3{margin:0 0 9px;padding-left:2px;color:var(--ink-3);font:720 10px/1 var(--mono);letter-spacing:.075em;text-transform:uppercase}
+.bracket-stack{display:grid;gap:10px}
+.bracket-match{overflow:hidden;border:1px solid var(--line);border-radius:var(--r1);background:var(--surface);box-shadow:var(--shadow-1)}
+.bracket-match[data-state="live"]{border-color:var(--go);box-shadow:0 0 0 2px var(--go-w),var(--shadow-1)}
+.bracket-cap{min-height:30px;padding:9px 11px 5px;color:var(--ink-3);font:650 10px/1.2 var(--mono);letter-spacing:.04em;text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bracket-team{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:6px 11px;font-size:14px;letter-spacing:-.012em}
+.bracket-team:last-child{padding-bottom:11px}
+.bracket-team span{min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bracket-team i{flex:0 0 auto;color:var(--go);font:700 9px/1 var(--sans);font-style:normal;letter-spacing:.04em;text-transform:uppercase}
+.bracket-team.won{font-weight:690}.bracket-team.lost{color:var(--ink-3)}.bracket-team.tbd{color:var(--ink-3)}
+.flow-line{position:relative;width:2px;height:29px;margin:1px auto;background:var(--line-2)}
+.flow-line::after{content:"";position:absolute;left:50%;bottom:-1px;width:8px;height:8px;border-right:2px solid var(--line-2);border-bottom:2px solid var(--line-2);transform:translateX(-50%) rotate(45deg)}
+.medal-round{padding-top:1px}.final-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.final-grid>div{min-width:0}.final-grid>div>small{display:block;margin:0 0 7px;padding-left:2px;color:var(--ink-3);font:680 10px/1 var(--mono);letter-spacing:.065em;text-transform:uppercase}.final-grid .bracket-match{height:100%}.final-grid>div:first-child .bracket-match{border-color:var(--ink);box-shadow:var(--shadow-2)}
+@media(min-width:760px){.bracket-pool-head{margin-bottom:16px}.bracket-match{min-height:86px}.final-grid{gap:12px}}
+
 .result-context{margin:10px 0 var(--s4);padding:14px;border-radius:var(--r2);background:var(--ink);color:var(--on-ink)}
 .result-context small{display:block;margin-bottom:7px;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;opacity:.64}
 .result-context b{display:block;font-size:17px;line-height:1.35;letter-spacing:-.018em}
@@ -729,20 +757,21 @@ body.tv .track{height:3px}
 <!-- ============ INNLOGGING ============ -->
 <section class="auth" id="auth" aria-labelledby="authTitle">
   <div class="mark" aria-hidden="true">
-    <svg viewBox="0 0 32 32"><rect x="6" y="5" width="6" height="22" rx="1.6" fill="#fff"/><rect x="17" y="12" width="6" height="15" rx="1.6" fill="#58c48a"/></svg>
+    <img src="https://d8j0ntlcm91z4.cloudfront.net/user_3GdzmhDdgaP9stT4ZuGgLhii3Jg/hf_20260801_075744_25f7b346-62b6-4678-8dde-7f66a2c0a841.svg" alt="">
   </div>
-  <h1 id="authTitle">Kilkast</h1>
+  <h1 id="authTitle">Kilkasting2026</h1>
   <p class="lede">Fire siffer fra arrangørlaget</p>
   <div class="dots" id="dots" role="status" aria-live="polite" aria-label="Kode"></div>
   <div class="pad-grid" id="keypad"></div>
   <p class="msg" id="authMsg" role="alert"></p>
+  <button class="btn quiet block install-app" id="installApp">Legg appen på Hjem-skjermen</button>
   <button class="btn ghost block" id="spectate" style="margin-top:20px">Følg med uten kode</button>
 </section>
 
 <!-- ============ APP ============ -->
 <div id="app" class="hide">
   <header class="head">
-    <h1 id="title">Kilkast</h1>
+    <h1 id="title">Kilkasting2026</h1>
     <button class="who" id="who" type="button"><span class="pip"></span><span id="whoName">Tilskuer</span></button>
   </header>
   <main id="view" tabindex="-1"></main>
@@ -827,7 +856,7 @@ const svg = (d, s) => `<svg viewBox="0 0 24 24" aria-hidden="true"${s?` style="$
 /* ---------- tilstand ---------- */
 const S = {
   code:null, role:null, teamId:null, teamName:null,
-  t:{ name:'Kilkast', match_seconds:2400, num_courts:6, phase:'setup', qualifiers_per_group:2 },
+  t:{ name:'Kilkasting2026', match_seconds:2400, num_courts:6, phase:'setup', qualifiers_per_group:2 },
   teams:[], matches:[], standings:[], advancement:[], audit:[],
   offset:0, tab:'courts', filter:'all', groupStage:'group', groupView:null, playoffView:'a', tv:false, ready:false,
   seenOnCourt:{}, assignmentPops:new Set(), adminAlerted:new Set(),
@@ -999,6 +1028,46 @@ async function boot(){
 const PUSH_PUBLIC_KEY = 'BFzuQeDUz2AWjtrMdqq_yTdww_ajLofEzxqsLgr-RDfd1wn7Mi0HL5fiwFYfrwB8dkB8wWVprcAPe8DZC4lEDLI';
 const isStandalone = () => matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
 const isIOS = () => /iphone|ipad|ipod/i.test(navigator.userAgent);
+let installPrompt = null;
+function refreshInstallButton(){
+  const button = $('#installApp');
+  if(!button) return;
+  button.hidden = isStandalone();
+  button.textContent = installPrompt && !isIOS() ? 'Installer appen' : 'Legg appen på Hjem-skjermen';
+}
+function showInstallInstructions(){
+  const ios = isIOS();
+  const { box, close } = sheet(`
+    <h2>Legg Kilkasting2026 på Hjem-skjermen</h2>
+    <p class="lede">Da får du et eget appikon og kan bruke turneringen uten nettleserfeltet.</p>
+    <div class="list">
+      ${ios ? `<div class="item"><span class="k">1</span><span><b>Åpne siden i Safari</b><small>Andre iPhone-nettlesere kan ikke legge til appen.</small></span></div>
+        <div class="item"><span class="k">2</span><span><b>Trykk på deleknappen</b><small>Den ligger nederst i Safari.</small></span></div>
+        <div class="item"><span class="k">3</span><span><b>Velg «Legg til på Hjem-skjermen»</b><small>Bekreft med «Legg til».</small></span></div>`
+        : `<div class="item"><span class="k">1</span><span><b>Åpne nettlesermenyen</b><small>Se etter de tre prikkene eller installasjonsikonet.</small></span></div>
+        <div class="item"><span class="k">2</span><span><b>Velg «Installer app»</b><small>Noen nettlesere kaller det «Legg til på startskjermen».</small></span></div>`}
+    </div>
+    <button class="btn primary block" data-x="close">Skjønner</button>`);
+  box.querySelector('[data-x="close"]').onclick = close;
+}
+async function installApp(){
+  if(isStandalone()){ toast('Kilkasting2026 er allerede lagt til'); return; }
+  if(installPrompt){
+    installPrompt.prompt();
+    const choice = await installPrompt.userChoice;
+    installPrompt = null;
+    refreshInstallButton();
+    if(choice?.outcome === 'accepted') toast('Kilkasting2026 blir lagt til nå');
+    return;
+  }
+  showInstallInstructions();
+}
+window.addEventListener('beforeinstallprompt', event => {
+  event.preventDefault(); installPrompt = event; refreshInstallButton();
+});
+window.addEventListener('appinstalled', () => {
+  installPrompt = null; refreshInstallButton(); toast('Kilkasting2026 er lagt til på Hjem-skjermen');
+});
 const notificationsEnabled = () => 'Notification' in window && Notification.permission === 'granted' && store.get('kubb.notifications') === 'on';
 function pushKey(value){
   const padding = '='.repeat((4 - value.length % 4) % 4);
@@ -1242,8 +1311,8 @@ function go(tab){
    RENDER
    ================================================================ */
 function paint(){
-  $('#title').textContent = S.t.name || 'Kilkast';
-  document.title = (S.t.name || 'Kilkast');
+  $('#title').textContent = S.t.name || 'Kilkasting2026';
+  document.title = (S.t.name || 'Kilkasting2026');
   const who = $('#who');
   who.dataset.role = S.role;
   $('#whoName').textContent = S.role === 'admin' ? (S.teamName ? `${S.teamName} · arrangørlag` : 'Arrangørlag') : S.role === 'team' ? (S.teamName || 'Lag') : 'Tilskuer';
@@ -1276,7 +1345,6 @@ function wire(){
       phase:   () => isAdmin() && confirmPhase(n.dataset.action),
       tiebreak:() => isAdmin() && sheetTiebreak(n.dataset.stage, n.dataset.group),
       undo:    () => isAdmin() && confirmUndo(),
-      choose:  () => isAdmin() && sheetChooseCourt(Number(n.dataset.court)),
       notify:  () => enableNotifications(),
       awake:   () => toggleWakeLock(),
       filter:  () => { S.filter = id; paint(); },
@@ -1327,7 +1395,7 @@ function viewCourts(){
   const n = S.t.num_courts || 6;
   if(!S.matches.length){
     return blank('Ingen kamper ennå',
-      isAdmin() ? 'Legg inn lagene og trekk gruppene. Deretter velger arrangørlaget den første kampen på hver bane.'
+      isAdmin() ? 'Legg inn lagene og trekk gruppene. De første kampene settes automatisk på alle ledige baner.'
                 : 'Arrangørlaget har ikke satt opp kampene ennå. Siden oppdaterer seg av seg selv.',
       isAdmin() ? `<button class="btn primary" data-do="teams">Legg inn lag</button>` : '');
   }
@@ -1372,8 +1440,7 @@ function courtCard(c, m, next){
   if(!m){
     return `<article class="court" data-state="free">
       <div class="court-top"><span class="court-no">${c}</span><span class="cap">Bane ${c}</span></div>
-      <div class="free">Ledig</div>
-      ${isAdmin() ? `<div class="court-actions"><button class="btn primary" data-do="choose" data-court="${c}">Velg kamp</button></div>` : ''}
+      <div class="free">Ledig — neste kamp settes automatisk</div>
     </article>`;
   }
   const a = tName(m.team_a) || m.source_a || '?';
@@ -1425,9 +1492,9 @@ function courtCard(c, m, next){
 function courtNextStrip(c, next){
   if(next){
     const a = tName(next.team_a) || '?', b = tName(next.team_b) || '?';
-    return `<div class="court-next assigned"><span><small>Neste på bane ${c}</small><b>${esc(a)} – ${esc(b)}</b></span>${isAdmin() ? `<button class="btn sm quiet" data-do="choose" data-court="${c}">Endre</button>` : ''}</div>`;
+    return `<div class="court-next assigned"><span><small>Neste på bane ${c}</small><b>${esc(a)} – ${esc(b)}</b></span>${isAdmin() ? `<button class="btn sm quiet" data-do="manageReady" data-id="${next.id}" data-court="${c}">Endre kamp</button>` : ''}</div>`;
   }
-  return isAdmin() ? `<div class="court-next assigned"><span><small>Neste på bane ${c}</small><b>Ikke valgt ennå</b></span><button class="btn sm quiet" data-do="choose" data-court="${c}">Velg</button></div>` : '';
+  return `<div class="court-next assigned"><span><small>Neste på bane ${c}</small><b>Settes automatisk når lagene er ledige</b></span></div>`;
 }
 
 function overviewCourtCard(c, m){
@@ -1622,12 +1689,12 @@ function viewGroups(){
     isAdmin() ? 'Legg inn lagene, så bygger tabellen seg selv etter hvert som resultatene kommer inn.' : 'Tabellen fylles ut når lagene er lagt inn.',
     isAdmin() ? `<button class="btn primary" data-do="teams">Legg inn lag</button>` : '');
   const second = S.groupStage === 'final_groups';
-  const stageSwitch = `<div class="seg stage-switch" role="group" aria-label="Velg gruppespill">
+  const stageSwitch = `<div class="mode stage-switch" role="group" aria-label="Velg gruppespill">
     <button type="button" data-do="groupStage" data-id="group" aria-pressed="${!second}">Gruppespill 1</button>
     <button type="button" data-do="groupStage" data-id="final_groups" aria-pressed="${second}">Gruppespill 2</button>
   </div>`;
   const groups = second
-    ? ['a_group|A1','a_group|A2','b_group|B1','b_group|B2']
+    ? ['b_group|B1','b_group|B2','a_group|A1','a_group|A2']
     : [...new Set(S.standings.filter(s => (s.stage || 'group') === 'group').map(s => `group|${s.grp}`))]
         .sort((a,b) => a.localeCompare(b, 'no', { numeric:true }));
   if(!groups.length) return stageSwitch + blank('Ingen grupper ennå', 'Gruppene vises her når trekningen er gjennomført.');
@@ -1655,6 +1722,7 @@ function viewGroups(){
   };
   return `
     ${stageSwitch}
+    <p class="stage-note">${second ? `De to øverste i ${esc(g)} går til ${stage === 'a_group' ? 'A' : 'B'}-semifinale.` : 'De to beste går til A-sporet. De to andre går til B-sporet.'}</p>
     ${groupNotificationPrompt()}
     <div class="group-tabs" role="navigation" aria-label="Velg gruppe">
       ${groups.map(key => `<button type="button" data-do="group" data-id="${esc(key)}"${key === selected ? ' aria-current="page"' : ''}>${esc(tabLabel(key))}</button>`).join('')}
@@ -1742,9 +1810,9 @@ function viewPlayoff(){
     const a = tName(m.team_a), b = tName(m.team_b), done = m.status === 'finished';
     const aw = done && m.result === 'a', bw = done && m.result === 'b';
     const running = ['live','paused','ready'].includes(m.status);
-    const cap = [m.label, m.court ? `bane ${m.court}` : '', m.status === 'live' ? 'spilles nå' : ''].filter(Boolean).join(' · ');
-    const row = (name, src, won, lost) => `<div class="s ${won ? 'won' : lost ? 'lost' : ''} ${name ? '' : 'tbd'}"><span>${esc(name || src || '–')}</span></div>`;
-    return `<article class="tie" data-state="${running ? 'live' : ''}"><div class="cap">${esc(cap)}</div>${row(a, m.source_a, aw, done && bw)}${row(b, m.source_b, bw, done && aw)}</article>`;
+    const cap = [m.label, m.court ? `Bane ${m.court}` : '', m.status === 'live' ? 'Spilles nå' : m.status === 'ready' ? 'Klar' : ''].filter(Boolean).join(' · ');
+    const row = (name, src, won, lost) => `<div class="bracket-team ${won ? 'won' : lost ? 'lost' : ''} ${name ? '' : 'tbd'}"><span>${esc(name || src || '–')}</span>${won ? '<i>Vinner</i>' : ''}</div>`;
+    return `<article class="bracket-match" data-state="${running ? 'live' : ''}"><div class="bracket-cap">${esc(cap)}</div>${row(a, m.source_a, aw, done && bw)}${row(b, m.source_b, bw, done && aw)}</article>`;
   };
   const renderPool = pool => {
     const poolMatches = po.filter(m => m.stage.startsWith(pool + '_'));
@@ -1761,21 +1829,21 @@ function viewPlayoff(){
     const earlier = ['r16','qf'].flatMap(stage => stageMatches(stage));
     const final = stageMatches('final');
     const bronze = stageMatches('bronze');
-    const stageBlock = (title, matches, cls = '') => matches.length ? `<section class="knockout-stage ${cls}"><h3>${esc(title)}</h3><div class="ties">${matches.map(renderTie).join('')}</div></section>` : '';
-    const flow = `<div class="knockout-flow">
-      ${earlier.length ? stageBlock('Innledende knockout', earlier) + '<div class="knockout-connector" aria-hidden="true"></div>' : ''}
-      ${stageBlock('Semifinaler', semis, 'semifinals')}
-      ${(semis.length && (final.length || bronze.length)) ? '<div class="knockout-connector" aria-hidden="true"></div>' : ''}
-      <div class="knockout-medals">${stageBlock('Finale', final, 'final')}${stageBlock('Bronsefinale', bronze, 'bronze')}</div>
+    const stack = (title, matches, cls = '') => matches.length ? `<section class="bracket-round ${cls}"><h3>${esc(title)}</h3><div class="bracket-stack">${matches.map(renderTie).join('')}</div></section>` : '';
+    const flow = `<div class="bracket-flow">
+      ${earlier.length ? stack('Innledende kamper', earlier, 'earlier') + '<div class="flow-line" aria-hidden="true"></div>' : ''}
+      ${stack('Semifinaler', semis, 'semifinals')}
+      ${(semis.length && (final.length || bronze.length)) ? '<div class="flow-line" aria-hidden="true"></div>' : ''}
+      <section class="bracket-round medal-round"><h3>Medaljekamper</h3><div class="final-grid"><div><small>Finale</small>${final.map(renderTie).join('')}</div><div><small>Bronsefinale</small>${bronze.map(renderTie).join('')}</div></div></section>
     </div>`;
     return `<section class="knockout-pool ${S.playoffView === pool ? 'is-selected' : ''}" data-pool="${pool}" aria-label="${pool.toUpperCase()}-sluttspill">
-      <header class="knockout-pool-head"><b>${pool.toUpperCase()}</b><span>${pool.toUpperCase()}-sluttspill</span></header>
+      <header class="bracket-pool-head"><b>${pool.toUpperCase()}</b><span><strong>${pool.toUpperCase()}-sluttspill</strong><small>Semifinaler, finale og bronse</small></span></header>
       ${champion}${flow}
     </section>`;
   };
   const pools = ['a','b'].filter(pool => po.some(m => m.stage.startsWith(pool + '_')));
   if(!pools.includes(S.playoffView)) S.playoffView = pools[0] || 'a';
-  return `<div class="seg playoff-switch" role="group" aria-label="Velg sluttspill">
+  return `<div class="mode playoff-switch" role="group" aria-label="Velg sluttspill">
     ${pools.map(pool => `<button type="button" data-do="playoff" data-id="${pool}" aria-pressed="${S.playoffView === pool}">${pool.toUpperCase()}-sluttspill</button>`).join('')}
   </div><div class="knockout-grid">${pools.map(renderPool).join('')}</div>`;
 }
@@ -2275,6 +2343,9 @@ document.addEventListener('fullscreenchange', () => { if(!document.fullscreenEle
    ================================================================ */
 keypad();
 $('#spectate').onclick = async () => { S.role = 'guest'; S.code = null; await boot(); };
+$('#installApp').onclick = installApp;
+registerServiceWorker();
+refreshInstallButton();
 document.addEventListener('keydown', e => {
   if(!$('#auth').classList.contains('hide')){
     if(/^\d$/.test(e.key)) press(e.key);

@@ -1,4 +1,4 @@
-# Kubbmesterskap
+# Kilkasting2026
 
 Turneringsverktøy for kubb. Én HTML-fil som kjører hele arrangementet: 16 lag, to gruppespill, banetildeling, 40-minutters nedtelling, tabeller og separate A- og B-sluttspill med finale og bronsefinale.
 
@@ -7,7 +7,7 @@ Turneringsverktøy for kubb. Én HTML-fil som kjører hele arrangementet: 16 lag
 1. Ett av arrangørlagene legger inn nøyaktig 16 lag. De to første lagene får arrangørtilgang med sin vanlige lagkode, og kan trekke fire tilfeldige puljer med fire lag, se og dele alle lagkoder, samt rette resultater før neste turneringstrinn låses. Trekket tidsstemples og kan ikke kjøres på nytt uten full nullstilling. Seier gir 3 poeng, uavgjort 1 poeng og tap 0 poeng.
 2. De to beste fra hver første pulje går til A1 eller A2. De to nederste går til B1 eller B2. Det blir fire nye puljer med fire lag og seks kamper i hver.
 3. Rangeringen er poeng, deretter innbyrdes poeng. Er lagene fortsatt helt like ved kvalifiseringsstreken, gjennomføres straffekast og arrangøren registrerer rekkefølgen. Etter andre gruppespill går de to beste fra hver pulje direkte til semifinaler i A eller B. Begge spor har finale og bronsefinale. En knockoutkamp kan aldri registreres uavgjort og avgjøres med straffekast ved behov.
-4. Baneoversikten viser live-kamper, ny kamp og nedtelling på fem baner i fast rekkefølge. Når et resultat lagres, velger systemet straks den høyest prioriterte spillbare kampen i køen og annonserer den på samme bane. Begge lagene i kampen kan starte den felles klokken; arrangørlagene har samme knapp som reserve. Når tiden går ut, fortsetter kampen å være åpen til et arrangørlag registrerer seier eller uavgjort. Berørte lag får popup, vedvarende banemelding og valgfrie nettleservarsler.
+4. Baneoversikten viser live-kamper, ny kamp og nedtelling på fem baner i fast rekkefølge. Alle ledige baner fylles automatisk ved start, faseoverganger og lagret resultat med den høyest prioriterte spillbare kampen. Arrangørlaget kan bare overstyre en kamp som allerede er klar, med «Endre kamp». Begge lagene i kampen kan starte den felles klokken; arrangørlagene har samme knapp som reserve. Når tiden går ut, fortsetter kampen å være åpen til et arrangørlag registrerer seier eller uavgjort. Berørte lag får popup, vedvarende banemelding og valgfrie nettleservarsler.
 5. Er et lag ikke klart, kan arrangørlaget velge en annen kamp. Kampen som erstattes får ti minutters pause og kommer deretter øverst i køen. Arrangørlaget kan også stryke et lag; da fjernes alle lagets spilte og kommende kamper, tabellene beregnes på nytt og laget kan ikke lenger logge inn.
 6. Arrangøren avslutter turneringen eksplisitt etter finaler og bronsefinaler. Resultatene låses og hele turneringen får status `finished`. En komplett turnering består av 56 kamper: 24 + 24 i gruppespillene og 8 i knockout.
 

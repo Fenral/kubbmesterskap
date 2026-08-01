@@ -4,7 +4,7 @@ self.addEventListener('activate', event => event.waitUntil(self.clients.claim())
 self.addEventListener('push', event => {
   let data = {};
   try { data = event.data?.json() || {}; } catch(_) { data = { body:event.data?.text() || '' }; }
-  event.waitUntil(self.registration.showNotification(data.title || 'Kilkast', {
+  event.waitUntil(self.registration.showNotification(data.title || 'Kilkasting2026', {
     body:data.body || 'Turneringen er oppdatert.',
     tag:data.tag || 'kilkast',
     renotify:true,

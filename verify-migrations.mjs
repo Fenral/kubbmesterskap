@@ -28,7 +28,8 @@ const migrations = [
   '20260731231654_incremental_final_group_fixtures.sql',
   '20260801054611_keep_expired_matches_open.sql',
   '20260801070428_automatic_next_match_and_team_start.sql',
-  '20260801072759_reset_results_keep_teams_and_groups.sql'
+  '20260801072759_reset_results_keep_teams_and_groups.sql',
+  '20260801074439_auto_fill_all_free_courts.sql'
 ];
 
 const CODE = 'ENDRE_MEG';
@@ -36,10 +37,18 @@ const assert = (condition, message) => { if (!condition) throw new Error(message
 const scalar = async (sql, params = []) => (await db.query(sql, params)).rows[0];
 const teamList = () => Array.from({ length:16 }, (_, i) => ({ name:`Lag ${i + 1}`, grp:'A' }));
 const playMatch = async (id, result = 'draw', code = CODE) => {
-  let match = await scalar('select status from public.kubb_matches where id = $1', [id]);
-  if (match.status === 'queued') {
+  let match = await scalar('select status, team_a, team_b from public.kubb_matches where id = $1', [id]);
+  if (match.status === 'finished') return;
+  while (match.status === 'queued') {
     await db.query("update public.kubb_matches set deferred_until = now() - interval '1 second' where id = $1 and deferred_until > now()", [id]);
-    await db.query('select public.kubb_select_court_match($1,$2,$3)', [code, 1, id]);
+    const conflict = await scalar(`select id from public.kubb_matches
+      where id <> $1 and status in ('ready','live','paused')
+        and ($2::uuid in (team_a, team_b) or $3::uuid in (team_a, team_b))
+      order by court nulls last, order_no limit 1`, [id, match.team_a, match.team_b]);
+    if (conflict?.id) { await playMatch(conflict.id, result, code); match = await scalar('select status, team_a, team_b from public.kubb_matches where id = $1', [id]); continue; }
+    match = await scalar('select status from public.kubb_matches where id = $1', [id]);
+    if (match.status === 'queued') await db.query('select public.kubb_select_court_match($1,$2,$3)', [code, 1, id]);
+    match = await scalar('select status, team_a, team_b from public.kubb_matches where id = $1', [id]);
   }
   match = await scalar('select status from public.kubb_matches where id = $1', [id]);
   if (match.status === 'ready') await db.query('select public.kubb_start_match($1,$2)', [code, id]);
@@ -97,6 +106,14 @@ let prepared = await scalar("select count(*)::int n from public.kubb_matches whe
 assert(prepared.n === 8, `expected exactly eight prepared knockout matches, got ${prepared.n}`);
 let tournament = await scalar('select phase, planned_matches from public.kubb_tournament where id = 1');
 assert(tournament.phase === 'group' && tournament.planned_matches === 56, 'the fixed 56-match plan was not stored');
+const firstCourtFill = await scalar(`select
+  count(*) filter (where status = 'ready' and stage = 'group')::int ready,
+  count(distinct court) filter (where status = 'ready' and stage = 'group')::int courts
+  from public.kubb_matches`);
+assert(firstCourtFill.ready === 2 && firstCourtFill.courts === 2, 'drawing groups did not automatically fill every free court');
+// Isolate the withdrawal test from the active queue; the assertion above covers
+// the automatic initial assignment itself.
+await db.query("update public.kubb_matches set status = 'queued', court = null, ready_at = null where status = 'ready'");
 let redrawWorked = false;
 try { await db.query('select public.kubb_admin_generate_groups($1)', [CODE]); redrawWorked = true; } catch (_) {}
 assert(!redrawWorked, 'the public draw was not locked');
@@ -135,6 +152,10 @@ const regenerated = (await db.query('select public.kubb_admin_regenerate_team_co
 assert(regenerated.code && regenerated.code !== teamCode.code, 'team code was not regenerated');
 await db.query("select public.kubb_admin_settings($1,'Kilkast test',40,2,2)", [CODE]);
 await db.query('select public.kubb_admin_generate_groups($1)', [CODE]);
+const regeneratedCourtFill = await scalar("select count(*) filter (where status = 'ready')::int ready from public.kubb_matches");
+assert(regeneratedCourtFill.ready === 2, 'a regenerated tournament did not fill both free courts');
+// Continue the deterministic full-flow test with an empty queue surface.
+await db.query("update public.kubb_matches set status = 'queued', court = null, ready_at = null where status = 'ready'");
 
 let advancement = await db.query('select * from public.kubb_advancement_slots order by destination_grp, destination_slot');
 assert(advancement.rows.length === 16 && advancement.rows.every(row => row.placement_status === 'waiting'), 'the four second-stage groups were not prepared as 16 visible waiting slots');
@@ -245,8 +266,8 @@ const manualPlacementMatches = await scalar(`select
   count(*) filter (where grp = 'A2' and (team_a = $2 or team_b = $2))::int in_a2
   from public.kubb_matches where stage = 'a_group'`, [originalA2.team_id, originalA1.team_id]);
 assert(manualPlacementMatches.in_a1 === 3 && manualPlacementMatches.in_a2 === 3, 'manual advancement overrides were not used to build group-stage matches');
-const firstSecondStage = await scalar("select id from public.kubb_matches where stage = 'a_group' order by order_no limit 1");
-await db.query('select public.kubb_select_court_match($1,$2,$3)', [CODE, 1, firstSecondStage.id]);
+const firstSecondStage = await scalar("select id, status from public.kubb_matches where stage = 'a_group' and status = 'ready' order by court, order_no limit 1");
+assert(firstSecondStage?.id, 'starting the second group phase did not automatically announce an A-group match');
 await db.query('select public.kubb_start_match($1,$2)', [CODE, firstSecondStage.id]);
 let lateOverrideWorked = false;
 try { await db.query('select public.kubb_admin_set_advancement_slot($1,$2,$3,$4)', [CODE, 'A1', 2, originalA1.team_id]); lateOverrideWorked = true; } catch (_) {}
@@ -278,8 +299,8 @@ let seeded = await scalar("select count(*)::int n from public.kubb_matches where
 assert(seeded.n === 4, 'all four direct semifinals were not seeded');
 
 // En sluttspillkamp kan ikke registreres uavgjort; vinneren velges etter straffekast.
-const firstSemi = await scalar("select id from public.kubb_matches where stage = 'a_sf' order by order_no limit 1");
-await db.query('select public.kubb_select_court_match($1,$2,$3)', [CODE, 1, firstSemi.id]);
+const firstSemi = await scalar("select id, status from public.kubb_matches where stage = 'a_sf' and status = 'ready' order by court, order_no limit 1");
+assert(firstSemi?.id, 'starting knockout did not automatically announce an A semifinal');
 await db.query('select public.kubb_start_match($1,$2)', [CODE, firstSemi.id]);
 let drawWorked = false;
 try { await db.query("select public.kubb_finish_match($1,$2,'draw')", [CODE, firstSemi.id]); drawWorked = true; } catch (_) {}
@@ -323,11 +344,12 @@ const cleanRestart = await scalar(`select
   (select planned_matches from public.kubb_tournament where id = 1) planned_matches,
   count(*)::int total,
   count(*) filter (where stage = 'group' and status = 'queued')::int queued_group,
+  count(*) filter (where stage = 'group' and status = 'ready')::int ready_group,
   count(*) filter (where status = 'finished' or result is not null or started_at is not null)::int played,
   count(*) filter (where stage in ('a_group','b_group'))::int second_group
   from public.kubb_matches`);
 assert(cleanRestart.phase === 'group' && cleanRestart.planned_matches === 56, 'result reset did not return the tournament to first group play');
-assert(cleanRestart.total === 32 && cleanRestart.queued_group === 24 && cleanRestart.played === 0 && cleanRestart.second_group === 0, 'result reset did not recreate a clean 24+8 match plan');
+assert(cleanRestart.total === 32 && cleanRestart.queued_group === 22 && cleanRestart.ready_group === 2 && cleanRestart.played === 0 && cleanRestart.second_group === 0, 'result reset did not recreate a clean 24+8 match plan with both courts ready');
 
 // Bakoverkompatibel knapp-funksjon skal ha noyaktig samme trygge semantikk.
 await db.query("update public.kubb_matches set status = 'finished', result = 'draw', ended_at = now() where id = (select id from public.kubb_matches where stage = 'group' order by order_no limit 1)");
@@ -336,9 +358,10 @@ const legacyReset = await scalar(`select
   (select count(*)::int from public.kubb_teams where withdrawn_at is null) teams,
   (select count(*)::int from public.kubb_codes where team_id is not null) codes,
   count(*) filter (where stage = 'group' and status = 'queued')::int queued_group,
+  count(*) filter (where stage = 'group' and status = 'ready')::int ready_group,
   count(*) filter (where status = 'finished' or result is not null)::int played
   from public.kubb_matches`);
-assert(legacyReset.teams === 16 && legacyReset.codes === 16 && legacyReset.queued_group === 24 && legacyReset.played === 0, 'Nullstill alt deleted setup or left played matches behind');
+assert(legacyReset.teams === 16 && legacyReset.codes === 16 && legacyReset.queued_group === 22 && legacyReset.ready_group === 2 && legacyReset.played === 0, 'Nullstill alt deleted setup or left played matches behind');
 
 console.log('Migration, complete 56-match flow, and safe result reset checks passed.');
 await db.close();
